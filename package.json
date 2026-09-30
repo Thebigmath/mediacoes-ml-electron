@@ -1,0 +1,31 @@
+{
+  "name": "mediacoes-ml",
+  "version": "1.0.0",
+  "description": "Mediações do Mercado Livre com IA (Flavia Stock e Cordeiro Car)",
+  "main": "main.js",
+  "author": "Thebigmath",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64 --publish never"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "electron-updater": "^6.3.9",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.thebigmath.mediacoes-ml",
+    "productName": "Mediacoes ML",
+    "directories": { "output": "dist" },
+    "publish": { "provider": "github", "owner": "Thebigmath", "repo": "mediacoes-ml-electron", "releaseType": "release" },
+    "win": { "target": "nsis", "icon": "public/assets/icon.ico" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Mediações ML" },
+    "files": ["main.js", "preload.js", "server.js", "routes/**", "lib/**", "public/**", "package.json", "node_modules/**"],
+    "asar": true
+  }
+}

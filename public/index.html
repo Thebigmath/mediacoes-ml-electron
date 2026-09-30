@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mediações ML</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+<style>
+:root { --bg:#0b0c10; --s1:#15171d; --s2:#1c1f27; --sep:rgba(255,255,255,.08); --l1:#f2f3f5; --l2:#b7bac2; --l3:#80848f;
+        --ac:#7b79f5; --vermelho:#ff453a; --laranja:#ff9f0a; --verde:#30d158; --azul:#0a84ff; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--l1); font:14px/1.5 -apple-system,"Segoe UI",Inter,Roboto,sans-serif; }
+button { font:inherit; }
+.topo { display:flex; align-items:center; gap:14px; padding:14px 22px; border-bottom:1px solid var(--sep); position:sticky; top:0; background:rgba(11,12,16,.92); backdrop-filter:blur(10px); z-index:5; }
+.marca { display:flex; align-items:center; gap:10px; font-weight:800; font-size:16px; }
+.marca img { width:28px; height:28px; border-radius:8px; }
+.abas { display:flex; gap:4px; margin-left:18px; }
+.abas button { background:none; border:0; color:var(--l2); padding:7px 12px; border-radius:9px; cursor:pointer; font-weight:600; }
+.abas button.on { background:var(--s2); color:var(--l1); }
+.dir { margin-left:auto; display:flex; align-items:center; gap:10px; }
+select, input, textarea { background:var(--s1); color:var(--l1); border:1px solid var(--sep); border-radius:10px; padding:7px 10px; font:inherit; }
+.btn { background:var(--s2); color:var(--l1); border:1px solid var(--sep); border-radius:10px; padding:7px 13px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+.btn:hover:not(:disabled) { border-color:rgba(255,255,255,.2); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn.pri { background:var(--ac); border-color:var(--ac); color:#fff; }
+.btn.perigo { background:var(--azul); border-color:var(--azul); color:#fff; }
+.estado { font-size:12px; color:var(--l3); }
+.faixa { display:none; margin:12px 22px 0; padding:10px 14px; border-radius:10px; font-size:13px; }
+.faixa.on { display:block; }
+.faixa.upd { background:rgba(10,132,255,.12); color:#8ec5ff; }
+.faixa.err { background:rgba(255,69,58,.12); color:#ff9d97; }
+main { padding:18px 22px 40px; }
+.vista { display:none; } .vista.on { display:block; }
+.cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; margin-bottom:18px; }
+.card { background:var(--s1); border:1px solid var(--sep); border-radius:14px; padding:14px 16px; }
+.card .r { font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--l3); font-weight:700; }
+.card .n { font-size:28px; font-weight:800; margin-top:2px; }
+.grade { display:grid; grid-template-columns:minmax(300px,420px) 1fr; gap:16px; align-items:start; }
+@media (max-width:900px) { .grade { grid-template-columns:1fr; } }
+.lista { display:flex; flex-direction:column; gap:8px; max-height:calc(100vh - 260px); overflow:auto; padding-right:4px; }
+.item { background:var(--s1); border:1px solid var(--sep); border-radius:12px; padding:12px 14px; cursor:pointer; }
+.item:hover { border-color:rgba(255,255,255,.18); } .item.sel { border-color:var(--ac); box-shadow:0 0 0 1px var(--ac) inset; }
+.item .t { font-weight:700; font-size:14px; } .item .p { color:var(--l2); font-size:13px; margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.linha { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px; }
+.chip { font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,.08); color:var(--l2); }
+.chip.alta { background:rgba(255,69,58,.15); color:var(--vermelho); } .chip.media { background:rgba(255,159,10,.15); color:var(--laranja); } .chip.baixa { background:rgba(48,209,88,.15); color:var(--verde); }
+.chip.enviada { background:rgba(48,209,88,.15); color:var(--verde); } .chip.auditando { background:rgba(123,121,245,.18); color:#b4b3ff; } .chip.encerrada { color:var(--l3); }
+.det { background:var(--s1); border:1px solid var(--sep); border-radius:16px; padding:18px 20px; min-height:300px; }
+.det h2 { margin:0; font-size:20px; } .sub { color:var(--l3); font-size:13px; }
+.bloco { margin-top:16px; } .bloco h4 { margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--l3); }
+.caixa { background:var(--s2); border:1px solid var(--sep); border-radius:12px; padding:12px 14px; }
+.conversa { display:flex; flex-direction:column; gap:8px; max-height:340px; overflow:auto; }
+.msg { border-radius:12px; padding:9px 12px; max-width:88%; font-size:13px; white-space:pre-wrap; }
+.msg .de { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; margin-bottom:3px; }
+.msg.complainant { background:rgba(255,69,58,.1); align-self:flex-start; } .msg.complainant .de { color:var(--vermelho); }
+.msg.respondent { background:rgba(48,209,88,.1); align-self:flex-end; } .msg.respondent .de { color:var(--verde); }
+.msg.mediator { background:rgba(10,132,255,.12); align-self:center; } .msg.mediator .de { color:var(--azul); }
+.msg .q { font-size:10px; color:var(--l3); margin-top:3px; }
+textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55; }
+.acoes { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; align-items:center; }
+.vazio { color:var(--l3); text-align:center; padding:40px; }
+.aviso { font-size:12px; color:var(--laranja); }
+.modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:20; }
+.modal.on { display:flex; }
+.modal .caixa { max-width:560px; width:92%; background:var(--s1); padding:20px; }
+.chat { display:flex; flex-direction:column; gap:10px; max-height:calc(100vh - 290px); overflow:auto; margin-bottom:12px; }
+.chat .msg.user { background:rgba(123,121,245,.15); align-self:flex-end; } .chat .msg.assistant { background:var(--s2); align-self:flex-start; }
+</style>
+</head>
+<body>
+<div class="topo">
+  <div class="marca"><img src="assets/icon.png" alt=""> Mediações ML</div>
+  <div class="abas">
+    <button data-v="mediacoes" class="on"><i class="bi bi-scale"></i> Mediações</button>
+    <button data-v="testes"><i class="bi bi-chat-dots"></i> Sala de testes</button>
+    <button data-v="config"><i class="bi bi-gear"></i> Configurações</button>
+  </div>
+  <div class="dir">
+    <span class="estado" id="estado">—</span>
+    <select id="conta"><option value="">Todas as contas</option><option value="flavia">Flavia Stock</option><option value="cordeiro">Cordeiro Car</option></select>
+    <button class="btn" id="btnSync"><i class="bi bi-arrow-repeat"></i> Atualizar</button>
+  </div>
+</div>
+<div class="faixa upd" id="faixaUpd"></div>
+<div class="faixa err" id="faixaErr"></div>
+
+<main>
+  <section class="vista on" id="v-mediacoes">
+    <div class="cards" id="cards"></div>
+    <div class="grade">
+      <div>
+        <div class="linha" style="margin:0 0 10px">
+          <select id="filtro"><option value="pendente">Pendentes</option><option value="auditando">Em revisão</option><option value="aguardando">Aguardando o ML</option><option value="enviada">Enviadas</option><option value="encerrada">Encerradas no ML</option><option value="">Todas</option></select>
+        </div>
+        <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
+      </div>
+      <div class="det" id="det"><div class="vazio">Escolha uma mediação na lista.</div></div>
+    </div>
+  </section>
+
+  <section class="vista" id="v-testes">
+    <div class="card" style="max-width:900px">
+      <div class="r">Sala de testes</div>
+      <div class="sub" style="margin-bottom:12px">Converse com o Llama deste computador (Ollama) sobre casos e respostas. Nada aqui é enviado ao Mercado Livre.</div>
+      <div class="chat" id="chat"></div>
+      <div class="linha"><textarea id="chatTxt" rows="3" style="flex:1" placeholder="Ex.: o comprador diz que a peça veio quebrada, mas o pacote chegou íntegro. Como argumentar?"></textarea>
+      <button class="btn pri" id="chatBtn"><i class="bi bi-send"></i> Enviar</button></div>
+    </div>
+  </section>
+
+  <section class="vista" id="v-config">
+    <div class="card" style="max-width:640px">
+      <div class="r">Contas do Mercado Livre</div>
+      <div id="cfgContas" class="sub" style="margin:8px 0 16px">—</div>
+      <div class="sub">O app usa o token do app Dashboard de cada conta. Não é preciso gerar outro token aqui.</div>
+      <hr style="border-color:var(--sep);margin:16px 0">
+      <div class="r">Chave do Gemini (análise e resposta)</div>
+      <div id="cfgGemini" class="sub" style="margin:6px 0 8px">—</div>
+      <div class="linha"><input id="cfgChave" type="password" placeholder="Cole a chave do Gemini" style="flex:1"><button class="btn pri" id="cfgSalvar">Salvar</button></div>
+      <hr style="border-color:var(--sep);margin:16px 0">
+      <div class="r">Modelo do Ollama (sala de testes)</div>
+      <div class="linha" style="margin-top:6px"><input id="cfgOllama" placeholder="llama3.2" style="flex:1"><button class="btn" id="cfgSalvarOllama">Salvar</button></div>
+      <hr style="border-color:var(--sep);margin:16px 0">
+      <div class="sub" id="versao">—</div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal"><div class="caixa">
+  <h3 style="margin:0 0 6px">Enviar resposta ao Mercado Livre?</h3>
+  <div class="sub" id="modalInfo"></div>
+  <div class="caixa" style="margin:12px 0;max-height:260px;overflow:auto;white-space:pre-wrap;font-size:13px;background:var(--s2)" id="modalTxt"></div>
+  <div class="aviso" id="modalAviso"></div>
+  <div class="acoes" style="justify-content:flex-end"><button class="btn" id="modalNao">Cancelar</button><button class="btn perigo" id="modalSim"><i class="bi bi-send"></i> Confirmar envio</button></div>
+</div></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const NOME = { flavia: 'Flavia Stock', cordeiro: 'Cordeiro Car' };
+const QUEM = { complainant: 'Comprador', respondent: 'Você (vendedor)', mediator: 'Mediador do ML', buyer: 'Comprador', seller: 'Você (vendedor)' };
+const ACAO = { responder: 'Responder', aguardar_comprador: 'Aguardar o comprador', aceitar_reembolso_parcial: 'Aceitar reembolso parcial', aceitar_reembolso_total: 'Aceitar reembolso total' };
+const STATUS = { pendente: 'Pendente', aguardando: 'Aguardando o ML', auditando: 'Em revisão', enviada: 'Enviada', encerrada: 'Encerrada no ML' };
+const quando = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+async function api(url, opt) {
+  const r = await fetch('/api' + url, opt && opt.body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opt.body) } : opt);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok && !('sucesso' in d)) throw new Error(d.erro || 'erro ' + r.status);
+  return d;
+}
+
+// ---- abas ----
+document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
+  if (b.dataset.v === 'config') carregarConfig();
+});
+
+// ---- painel ----
+let painel = null, sel = null, atual = null;
+async function carregar() {
+  try {
+    painel = await api('/painel' + ($('conta').value ? '?conta=' + $('conta').value : ''));
+    desenharCards(); desenharLista(); mostrarEstado(painel.estado);
+  } catch (e) { $('lista').innerHTML = `<div class="vazio">Erro: ${esc(e.message)}</div>`; }
+}
+function desenharCards() {
+  const r = painel.resumo, p = r.por_prioridade, s = r.por_status;
+  const c = (rot, n, cor) => `<div class="card"><div class="r">${rot}</div><div class="n" style="color:${cor || 'var(--l1)'}">${n || 0}</div></div>`;
+  $('cards').innerHTML = c('Pendentes', s.pendente) + c('Prioridade alta', p.alta, 'var(--vermelho)') + c('Prioridade média', p.media, 'var(--laranja)')
+    + c('Prioridade baixa', p.baixa, 'var(--verde)') + c('Em revisão', s.auditando, '#b4b3ff') + c('Aguardando o ML', s.aguardando, 'var(--l3)') + c('Enviadas', s.enviada, 'var(--verde)');
+}
+function desenharLista() {
+  const f = $('filtro').value;
+  const L = painel.itens.filter(m => !f || m.status === f);
+  $('lista').innerHTML = L.length ? L.map(m => `<div class="item ${m.mediacao_id === sel ? 'sel' : ''}" onclick="abrir('${m.mediacao_id}')">
+      <div class="t">${esc(m.tema)}</div>
+      <div class="p">${esc(m.resumo || m.pergunta_original)}</div>
+      <div class="linha"><span class="chip ${m.prioridade}">${esc(m.prioridade)}</span><span class="chip ${m.status}">${STATUS[m.status] || esc(m.status)}</span>
+      <span class="chip">${NOME[m.conta] || esc(m.conta)}</span>${m.prazo_resposta ? `<span class="chip" title="Prazo para responder">⏱ ${quando(m.prazo_resposta)}</span>` : ''}
+      ${m.moderadas ? '<span class="chip alta" title="O ML moderou mensagem nesta conversa">moderada</span>' : ''}${m.tem_resposta ? '' : '<span class="chip">sem resposta</span>'}</div></div>`).join('')
+    : '<div class="vazio">Nenhuma mediação aqui.</div>';
+}
+function mostrarEstado(e) {
+  $('btnSync').disabled = e.rodando;
+  const ult = Object.values(e.ultimo || {}).map(x => x.quando).sort().pop();
+  $('estado').textContent = e.rodando ? (e.etapa || 'atualizando…') : (ult ? 'atualizado às ' + new Date(ult).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'ainda não atualizado');
+  $('faixaErr').classList.toggle('on', !e.rodando && (e.erros || []).length > 0);
+  $('faixaErr').innerHTML = (e.erros || []).slice(0, 4).map(esc).join('<br>');
+}
+
+async function abrir(id) {
+  sel = id; desenharLista();
+  $('det').innerHTML = '<div class="vazio">Carregando…</div>';
+  const d = await api('/mediacao/' + id); atual = d.mediacao;
+  const m = atual, a = m.analise || {};
+  const conversa = (m.historico_ml || []).map(x => `<div class="msg ${esc(x.remetente)}"><div class="de">${QUEM[x.remetente] || esc(x.remetente)}${x.destinatario ? ' → ' + (QUEM[x.destinatario] || esc(x.destinatario)) : ''}</div>${esc(x.texto)}<div class="q">${quando(x.quando)}${x.moderacao && x.moderacao !== 'clean' ? ' · moderada pelo ML' : ''}</div></div>`).join('') || '<div class="sub">Sem mensagens.</div>';
+  const podeResponder = m.status_ml === 'opened' && m.acao_disponivel && m.status !== 'enviada';
+  const para = m.destinatario === 'mediator' ? 'o mediador do Mercado Livre' : 'o comprador';
+  $('det').innerHTML = `
+    <h2>${esc(m.tema)}</h2>
+    <div class="sub">${NOME[m.conta] || esc(m.conta)} · reclamação ${esc(m.mediacao_id)}${m.order_id ? ' · pedido ' + esc(m.order_id) : ''}</div>
+    <div class="linha"><span class="chip ${m.prioridade}">prioridade ${esc(m.prioridade)}</span><span class="chip ${m.status}">${STATUS[m.status] || esc(m.status)}</span>
+      ${m.prazo_resposta ? `<span class="chip">responder até ${quando(m.prazo_resposta)}</span>` : ''}
+      ${m.afeta_reputacao != null ? `<span class="chip ${m.afeta_reputacao === 'affected' || m.afeta_reputacao === true ? 'alta' : ''}">reputação: ${esc(m.afeta_reputacao)}</span>` : ''}
+      ${a.acao_recomendada ? `<span class="chip">IA sugere: ${ACAO[a.acao_recomendada] || esc(a.acao_recomendada)}</span>` : ''}</div>
+    ${a.resumo ? `<div class="bloco"><h4>Resumo da IA</h4><div class="caixa">${esc(a.resumo)}${a.prioridade_porque ? `<div class="sub" style="margin-top:6px">${esc(a.prioridade_porque)}</div>` : ''}</div></div>` : ''}
+    ${a.nossa_defesa ? `<div class="bloco"><h4>Nossa defesa</h4><div class="caixa">${esc(a.nossa_defesa)}</div></div>` : ''}
+    ${(a.provas_faltantes || []).length ? `<div class="bloco"><h4>Confirmar antes de enviar</h4><div class="caixa">${a.provas_faltantes.map(p => '• ' + esc(p)).join('<br>')}</div></div>` : ''}
+    <div class="bloco"><h4>Conversa no Mercado Livre</h4><div class="caixa conversa">${conversa}</div></div>
+    <div class="bloco"><h4>Resposta ${podeResponder ? '(vai para ' + para + ')' : ''}</h4>
+      <textarea class="resp" id="resp" ${m.status === 'enviada' ? 'readonly' : ''}>${esc(m.status === 'enviada' ? (m.resposta_enviada || m.mensagem_sugerida) : m.mensagem_sugerida)}</textarea>
+      <div class="acoes">
+        <button class="btn" onclick="analisar()"><i class="bi bi-stars"></i> ${m.mensagem_sugerida ? 'Refazer análise' : 'Gerar análise e resposta'}</button>
+        <select id="tom"><option value="firme">Mais firme</option><option value="conciliador">Mais conciliador</option><option value="tecnico">Mais técnico</option></select>
+        <button class="btn" onclick="reescrever()" ${m.mensagem_sugerida ? '' : 'disabled'}><i class="bi bi-arrow-repeat"></i> Reescrever</button>
+        <button class="btn" onclick="salvar()"><i class="bi bi-save"></i> Salvar revisão</button>
+        <button class="btn perigo" onclick="pedirEnvio()" ${podeResponder ? '' : 'disabled'}><i class="bi bi-send"></i> Enviar ao ML</button>
+        <span class="sub" id="acaoMsg"></span>
+      </div>
+      ${!podeResponder && m.status !== 'enviada' ? '<div class="aviso" style="margin-top:6px">O Mercado Livre não está aceitando resposta nesta mediação agora (prazo vencido ou já decidida).</div>' : ''}
+      ${a.modelo ? `<div class="sub" style="margin-top:6px">Análise: ${esc(a.modelo)} · ${quando(a.analisado_em)}</div>` : ''}
+    </div>
+    ${(d.historico || []).length ? `<div class="bloco"><h4>Histórico neste app</h4><div class="caixa sub">${d.historico.map(h => `${quando(h.quando)} · ${esc(h.tipo)}${h.tom ? ' (' + esc(h.tom) + ')' : ''}${h.tipo === 'envio' ? (h.enviou ? ' · enviada' : ' · falhou: ' + esc(h.erro)) : ''}`).join('<br>')}</div></div>` : ''}`;
+}
+const msgAcao = (t) => { const el = $('acaoMsg'); if (el) el.textContent = t; };
+async function analisar() {
+  msgAcao('A IA está analisando…');
+  try { await api('/mediacao/' + sel + '/analisar', { body: {} }); await carregar(); await abrir(sel); }
+  catch (e) { msgAcao('Erro: ' + e.message); }
+}
+async function reescrever() {
+  msgAcao('Reescrevendo…');
+  try { const r = await api('/mediacao/' + sel + '/reescrever', { body: { tom: $('tom').value } }); $('resp').value = r.resposta; msgAcao('Nova versão pronta. Revise e salve.'); }
+  catch (e) { msgAcao('Erro: ' + e.message); }
+}
+async function salvar() {
+  try { await api('/mediacao/' + sel + '/rascunho', { body: { texto: $('resp').value } }); msgAcao('Revisão salva.'); carregar(); }
+  catch (e) { msgAcao('Erro: ' + e.message); }
+}
+function pedirEnvio() {
+  const txt = $('resp').value.trim();
+  if (!txt) { msgAcao('A resposta está vazia.'); return; }
+  $('modalInfo').textContent = `${NOME[atual.conta]} · reclamação ${atual.mediacao_id}${atual.order_id ? ' · pedido ' + atual.order_id : ''} · vai para ${atual.destinatario === 'mediator' ? 'o mediador do ML' : 'o comprador'}`;
+  $('modalTxt').textContent = txt;
+  $('modalAviso').textContent = /\[CONFIRMAR/i.test(txt) ? 'Atenção: a resposta ainda tem trechos [CONFIRMAR: ...]. Troque pelos dados reais antes de enviar.' : '';
+  $('modalSim').disabled = /\[CONFIRMAR/i.test(txt);
+  $('modal').classList.add('on');
+}
+$('modalNao').onclick = () => $('modal').classList.remove('on');
+$('modalSim').onclick = async () => {
+  $('modalSim').disabled = true;
+  const txt = $('resp').value.trim();
+  try {
+    const r = await api('/mediacao/' + sel + '/enviar', { body: { texto: txt, editada: txt !== (atual.mensagem_sugerida || '').trim(), confirmacao: 'ENVIAR' } });
+    $('modal').classList.remove('on');
+    msgAcao(r.sucesso ? 'Resposta enviada ao Mercado Livre.' : 'Não enviou: ' + r.erro);
+    if (r.sucesso) { await carregar(); await abrir(sel); }
+  } catch (e) { msgAcao('Erro: ' + e.message); $('modal').classList.remove('on'); }
+  $('modalSim').disabled = false;
+};
+
+// ---- atualizar (sincronizar com o ML) ----
+$('btnSync').onclick = async () => { await api('/sincronizar', { body: { conta: $('conta').value || undefined } }); acompanhar(); };
+let tAcomp = null;
+async function acompanhar() {
+  clearTimeout(tAcomp);
+  const e = await api('/estado').catch(() => null); if (!e) return;
+  mostrarEstado(e);
+  if (e.rodando) tAcomp = setTimeout(acompanhar, 2000); else carregar();
+}
+$('conta').onchange = () => { sel = null; $('det').innerHTML = '<div class="vazio">Escolha uma mediação na lista.</div>'; carregar(); };
+$('filtro').onchange = () => desenharLista();
+
+// ---- sala de testes ----
+const hist = [];
+function desenharChat() { $('chat').innerHTML = hist.map(h => `<div class="msg ${h.role}">${esc(h.content)}</div>`).join(''); $('chat').scrollTop = 1e9; }
+$('chatBtn').onclick = async () => {
+  const t = $('chatTxt').value.trim(); if (!t) return;
+  hist.push({ role: 'user', content: t }); $('chatTxt').value = ''; desenharChat();
+  hist.push({ role: 'assistant', content: 'pensando…' }); desenharChat(); $('chatBtn').disabled = true;
+  try { const r = await api('/chat', { body: { mensagem: t, historico: hist.slice(0, -2) } }); hist[hist.length - 1].content = r.resposta; }
+  catch (e) { hist[hist.length - 1].content = 'Erro: ' + e.message; }
+  $('chatBtn').disabled = false; desenharChat();
+};
+
+// ---- configuracoes ----
+async function carregarConfig() {
+  const [c, cs, v] = await Promise.all([api('/config'), api('/contas'), api('/versao')]);
+  $('cfgContas').innerHTML = cs.map(x => `${x.conectado ? '<span style="color:var(--verde)">●</span>' : '<span style="color:var(--vermelho)">●</span>'} ${esc(x.nome)} ${x.conectado ? '— conectada' + (x.apelido ? ' (' + esc(x.apelido) + ')' : '') : '— ' + esc(x.erro)}`).join('<br>');
+  $('cfgGemini').textContent = c.gemini_configurado ? `Chave configurada (termina em ${c.gemini_final}).` : 'Sem chave salva no app: usando a da Área de Trabalho (tokenfgemini.txt), se existir.';
+  $('cfgOllama').value = c.ollama_modelo; $('versao').textContent = 'Mediações ML v' + v.versao;
+}
+$('cfgSalvar').onclick = async () => { if (!$('cfgChave').value.trim()) return; await api('/config', { body: { gemini_api_key: $('cfgChave').value } }); $('cfgChave').value = ''; carregarConfig(); };
+$('cfgSalvarOllama').onclick = async () => { await api('/config', { body: { ollama_modelo: $('cfgOllama').value } }); carregarConfig(); };
+
+// ---- atualizacao do app ----
+if (window.electronAPI) {
+  window.electronAPI.onUpdateAvailable(v => { $('faixaUpd').textContent = `Baixando a atualização ${v}…`; $('faixaUpd').classList.add('on'); });
+  window.electronAPI.onUpdateDownloaded(v => { $('faixaUpd').innerHTML = `Atualização ${esc(v || '')} pronta. <button class="btn" onclick="window.electronAPI.installUpdate()">Instalar agora</button>`; $('faixaUpd').classList.add('on'); });
+}
+
+carregar(); acompanhar();
+setInterval(() => { if (document.visibilityState === 'visible') acompanhar(); }, 60000);
+</script>
+</body>
+</html>
