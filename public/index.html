@@ -95,6 +95,8 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
 .filtros { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; }
 .filtros button { background:var(--s1); border:1px solid var(--sep); color:var(--l2); border-radius:999px; padding:4px 11px; font-size:12px; font-weight:700; cursor:pointer; }
 .filtros button.on { background:var(--ac); border-color:var(--ac); color:#fff; }
+.pg { background:var(--s1); border:1px solid var(--sep); border-radius:14px; padding:14px 16px; margin-bottom:10px; }
+.pg .q { font-size:15px; font-weight:700; margin:6px 0; } .pg textarea { width:100%; min-height:80px; resize:vertical; }
 </style>
 </head>
 <body>
@@ -102,6 +104,7 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
   <div class="marca"><img src="assets/icon.png" alt=""> Harvey <span class="sub" style="font-weight:600">· mediações</span></div>
   <div class="abas">
     <button data-v="mediacoes" class="on"><i class="bi bi-scale"></i> Mediações</button>
+    <button data-v="perguntas"><i class="bi bi-question-circle"></i> Perguntas <span class="chip" id="pergN" style="display:none"></span></button>
     <button data-v="metricas"><i class="bi bi-graph-down-arrow"></i> Métricas</button>
     <button data-v="dev"><i class="bi bi-terminal"></i> Área do desenvolvedor</button>
     <button data-v="config"><i class="bi bi-gear"></i> Configurações</button>
@@ -126,6 +129,21 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
       </div>
       <div class="det" id="det"><div class="vazio">Escolha uma mediação na lista.</div></div>
     </div>
+  </section>
+
+  <section class="vista" id="v-perguntas">
+    <div class="linha" style="margin:0 0 14px;justify-content:space-between">
+      <div><div class="r">Perguntas dos compradores</div><div class="sub" id="pgSub">—</div></div>
+      <div class="linha" style="margin:0">
+        <label class="btn" style="cursor:pointer"><input type="checkbox" id="pgAuto"> Responder automaticamente</label>
+        <button class="btn" id="pgVerificar"><i class="bi bi-arrow-repeat"></i> Buscar agora</button>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><div class="sub" id="pgExplica"></div></div>
+    <div class="r" style="margin:6px 2px">Para responder</div>
+    <div id="pgAbertas"></div>
+    <div class="r" style="margin:18px 2px 6px">Respondidas pelo Harvey</div>
+    <div id="pgRespondidas"></div>
   </section>
 
   <section class="vista" id="v-metricas">
@@ -233,6 +251,7 @@ document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
   if (b.dataset.v === 'config') carregarConfig();
+  if (b.dataset.v === 'perguntas') carregarPerguntas();
   if (b.dataset.v === 'metricas') carregarMetricas().then(() => { if (!mt.atualizado_em) $('mtAtualizar').click(); });
   if (b.dataset.v === 'dev') { if (devToken) abrirDev(); else mostrarTrava(); }
 });
@@ -376,6 +395,49 @@ async function acompanhar() {
 }
 $('conta').onchange = () => { if (document.querySelector('#v-metricas.on')) carregarMetricas(); sel = null; $('det').innerHTML = '<div class="vazio">Escolha uma mediação na lista.</div>'; carregar(); };
 $('filtro').onchange = () => desenharLista();
+
+// ---- perguntas de pre-venda ----
+const CONF = { alta: 'baixa', media: 'media', baixa: 'alta' };   // cor do chip (certeza alta = verde)
+let pg = null;
+async function carregarPerguntas() {
+  pg = await api('/perguntas');
+  $('pgAuto').checked = pg.automatico;
+  const n = pg.abertas.length; $('pergN').style.display = n ? '' : 'none'; $('pergN').textContent = n;
+  $('pgSub').textContent = (pg.estado.verificado_em ? 'verificado às ' + new Date(pg.estado.verificado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'ainda não verificado') + ' · busca a cada 2 minutos nas duas contas' + (pg.estado.rodando ? ' · buscando…' : '');
+  $('pgExplica').innerHTML = pg.automatico
+    ? '<b style="color:var(--verde)">Automático ligado.</b> O Harvey envia sozinho só quando a resposta está claramente no anúncio (certeza alta), sem contato nem link. O resto aparece abaixo para você revisar.'
+    : '<b>Automático desligado.</b> A IA prepara cada resposta com os dados do anúncio, e você revisa e envia. Ligue "Responder automaticamente" para o Harvey enviar sozinho as que ele tem certeza.';
+  $('pgAbertas').innerHTML = pg.abertas.length ? pg.abertas.map(q => `<div class="pg">
+      <div class="linha" style="margin:0"><span class="chip">${NOME[q.conta]}</span><span class="sub">${esc(q.produto_titulo || q.item_id)} · ${quando(q.criado)}</span>
+        ${q.ia ? `<span class="chip ${CONF[q.ia.confianca]}">certeza ${esc(q.ia.confianca)}</span>` : '<span class="chip">IA analisando…</span>'}</div>
+      <div class="q">“${esc(q.texto)}”</div>
+      ${q.ia ? `<textarea id="pgr_${q.id}">${esc(q.ia.resposta)}</textarea>
+        <div class="sub" style="margin-top:4px">${esc(q.ia.base ? 'Base: ' + q.ia.base : '')}${q.motivo ? ' · Não enviada sozinha: ' + esc(q.motivo) : ''}</div>
+        <div class="acoes"><button class="btn perigo" onclick="pgEnviar('${q.id}')"><i class="bi bi-send"></i> Enviar</button>
+          <button class="btn" onclick="pgGerar('${q.id}')"><i class="bi bi-stars"></i> Gerar de novo</button>
+          <button class="btn" onclick="pgIgnorar('${q.id}')">Ignorar</button><span class="sub" id="pgm_${q.id}"></span></div>` : ''}
+    </div>`).join('') : '<div class="vazio">Nenhuma pergunta esperando resposta.</div>';
+  $('pgRespondidas').innerHTML = pg.respondidas.length ? pg.respondidas.map(q => `<div class="pg">
+      <div class="linha" style="margin:0"><span class="chip">${NOME[q.conta]}</span><span class="sub">${esc(q.produto_titulo || q.item_id)} · respondida ${quando(q.enviada_em)}</span>
+        <span class="chip ${q.automatica ? 'enviada' : ''}">${q.automatica ? 'automática' : 'revisada'}</span></div>
+      <div class="q">“${esc(q.texto)}”</div><div style="color:var(--l2)">${esc(q.resposta_enviada)}</div></div>`).join('') : '<div class="sub">Nenhuma ainda.</div>';
+}
+async function pgEnviar(id) {
+  const t = $('pgr_' + id).value.trim(); if (!t) return;
+  if (!confirm('Enviar esta resposta ao comprador no Mercado Livre?')) return;
+  $('pgm_' + id).textContent = 'Enviando…';
+  try { await api('/perguntas/' + id + '/responder', { body: { texto: t } }); carregarPerguntas(); } catch (e) { $('pgm_' + id).textContent = 'Erro: ' + e.message; }
+}
+async function pgGerar(id) { $('pgm_' + id).textContent = 'A IA está relendo o anúncio…'; try { await api('/perguntas/' + id + '/gerar', { body: {} }); carregarPerguntas(); } catch (e) { $('pgm_' + id).textContent = 'Erro: ' + e.message; } }
+async function pgIgnorar(id) { await api('/perguntas/' + id + '/ignorar', { body: {} }); carregarPerguntas(); }
+$('pgAuto').onchange = async () => {
+  const ligar = $('pgAuto').checked;
+  if (ligar && !confirm('Ligar a resposta automática? O Harvey vai enviar sozinho as respostas em que a IA tem certeza, com base no anúncio.')) { $('pgAuto').checked = false; return; }
+  await api('/perguntas/automatico', { body: { ligado: ligar } }); carregarPerguntas();
+};
+$('pgVerificar').onclick = async () => { await api('/perguntas/verificar', { body: {} }); setTimeout(carregarPerguntas, 1500); setTimeout(carregarPerguntas, 15000); };
+setInterval(() => carregarPerguntas().catch(() => {}), 60000);   // mantem o contador da aba em dia
+carregarPerguntas().catch(() => {});
 
 // ---- metricas ----
 const R$ = (v) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -550,6 +612,7 @@ async function abrirDoPainel(id) {
 }
 if (window.electronAPI) {
   window.electronAPI.onAbrirMediacao(id => abrirDoPainel(id));
+  window.electronAPI.onAbrirAba(aba => document.querySelector(`.abas button[data-v="${aba}"]`)?.click());
   window.electronAPI.onUpdateAvailable(v => { $('faixaUpd').textContent = `Baixando a atualização ${v}…`; $('faixaUpd').classList.add('on'); });
   window.electronAPI.onUpdateDownloaded(v => { $('faixaUpd').innerHTML = `Atualização ${esc(v || '')} pronta. <button class="btn" onclick="window.electronAPI.installUpdate()">Instalar agora</button>`; $('faixaUpd').classList.add('on'); });
 }

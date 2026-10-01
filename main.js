@@ -21,6 +21,7 @@ app.setAppUserModelId('com.thebigmath.mediacoes-ml');
 
 const server = require('./server');
 const monitor = require('./lib/monitor');
+const perguntas = require('./lib/perguntas');
 
 function mostrarJanela() {
     if (!mainWindow) return;
@@ -28,6 +29,12 @@ function mostrarJanela() {
     mainWindow.show(); mainWindow.focus();
 }
 
+perguntas.usarNotificador((titulo, corpo) => {
+    if (!Notification.isSupported()) return;
+    const n = new Notification({ title: titulo, body: corpo });
+    n.on('click', () => { mostrarJanela(); mainWindow?.webContents.send('abrir-aba', 'perguntas'); });
+    n.show();
+});
 monitor.usarNotificador((titulo, corpo) => {
     if (!Notification.isSupported()) return;
     const n = new Notification({ title: titulo, body: corpo });
@@ -116,6 +123,7 @@ app.whenReady().then(() => {
         criarPainel();
         if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true, args: ['--segundo-plano'] });
         monitor.iniciarAgendador();
+        perguntas.iniciar();
     });
 });
 
@@ -128,7 +136,7 @@ function criarBandeja() {
         { label: 'Atualizar mediações agora', click: () => { monitor.sincronizar().catch(() => {}); mostrarPainel(); } },
         { type: 'separator' },
         { label: 'Verificar atualização do app', click: () => { verificarUpdate(); mostrarJanela(); } },
-        { label: 'Sair', click: () => { encerrando = true; monitor.pararAgendador(); server.stop(); app.quit(); } },
+        { label: 'Sair', click: () => { encerrando = true; monitor.pararAgendador(); perguntas.parar(); server.stop(); app.quit(); } },
     ]));
     tray.on('double-click', () => mostrarJanela());
 }

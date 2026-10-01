@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fecharPainel: () => ipcRenderer.send('fechar-painel'),
     onRecarregar: (cb) => ipcRenderer.on('recarregar', () => cb()),
     onAbrirMediacao: (cb) => ipcRenderer.on('abrir-mediacao', (_, id) => cb(id)),
+    onAbrirAba: (cb) => ipcRenderer.on('abrir-aba', (_, aba) => cb(aba)),
 });

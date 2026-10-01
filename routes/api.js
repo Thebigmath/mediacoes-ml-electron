@@ -118,4 +118,13 @@ router.post('/metricas/ia', (req, res) => {
         .catch(e => { log.erro('ia', 'IA_ERRO', `Métricas: ${e.message}`); res.status(500).json({ erro: e.message }); });
 });
 
+// Perguntas de pre-venda
+const perguntas = require('../lib/perguntas');
+router.get('/perguntas', (req, res) => res.json(perguntas.listar()));
+router.post('/perguntas/verificar', (req, res) => { perguntas.verificar().catch(() => {}); res.json({ ok: true }); });
+router.post('/perguntas/automatico', (req, res) => { perguntas.setAutomatico(!!(req.body || {}).ligado); log.info('perguntas', 'PERG_MODO', `Resposta automática ${(req.body || {}).ligado ? 'ligada' : 'desligada'}`); res.json({ ok: true, automatico: perguntas.automatico() }); });
+router.post('/perguntas/:id/responder', (req, res) => perguntas.responder(req.params.id, (req.body || {}).texto).then(r => res.json({ ok: true, pergunta: r })).catch(e => res.status(400).json({ erro: e.message })));
+router.post('/perguntas/:id/gerar', (req, res) => perguntas.gerarDeNovo(req.params.id).then(r => res.json({ ok: true, pergunta: r })).catch(erro(res)));
+router.post('/perguntas/:id/ignorar', (req, res) => { perguntas.ignorar(req.params.id); res.json({ ok: true }); });
+
 module.exports = router;
