@@ -1,14 +1,14 @@
 // Mediações ML — processo principal do Electron (mesmo molde do Dashboard, app separado).
 // Sobe o servidor local na porta 3005, abre a janela, fica na bandeja, avisa mediação nova
 // por notificação do Windows e se atualiza sozinho pelo GitHub (Thebigmath/mediacoes-ml-electron).
-const { app, BrowserWindow, ipcMain, shell, Notification, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Notification, Tray, Menu, nativeImage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 
 const PORTA = 3005;
 const URL = `http://localhost:${PORTA}`;
-let mainWindow = null, tray = null, encerrando = false;
+let mainWindow = null, painel = null, tray = null, encerrando = false;
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else app.on('second-instance', () => mostrarJanela());
@@ -34,6 +34,39 @@ monitor.usarNotificador((titulo, corpo) => {
     n.on('click', () => mostrarJanela());
     n.show();
 });
+
+// ---- painel lateral: lista das mediacoes no canto direito da tela ----
+// Aparece depois da primeira busca do dia (se houver mediacao esperando resposta) e sempre que
+// chega mediacao nova. O X esconde; volta pela bandeja ou na proxima mediacao nova.
+let primeiraBusca = true;
+function criarPainel() {
+    const area = screen.getPrimaryDisplay().workArea;
+    const largura = 340, altura = Math.min(620, Math.round(area.height * 0.7));
+    painel = new BrowserWindow({
+        width: largura, height: altura, x: area.x + area.width - largura - 12, y: area.y + area.height - altura - 12,
+        frame: false, resizable: true, minimizable: false, maximizable: false, alwaysOnTop: true, skipTaskbar: true, show: false,
+        title: 'Mediações', backgroundColor: '#111318',
+        webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
+    });
+    painel.loadURL(URL + '/painel.html');
+    painel.on('close', (e) => { if (!encerrando) { e.preventDefault(); painel.hide(); } });
+}
+function mostrarPainel() {
+    if (!painel || painel.isDestroyed()) criarPainel();
+    painel.webContents.send('recarregar');
+    painel.showInactive();   // aparece sem roubar o foco do que a pessoa esta fazendo
+}
+monitor.usarAoTerminar(({ novas }) => {
+    const esperando = require('./lib/banco').listar().filter(m => ['pendente', 'auditando'].includes(m.status)).length;
+    if (painel && !painel.isDestroyed()) painel.webContents.send('recarregar');
+    if ((primeiraBusca && esperando) || novas) mostrarPainel();
+    primeiraBusca = false;
+});
+ipcMain.on('abrir-mediacao', (_, id) => {
+    mostrarJanela();
+    if (id) mainWindow?.webContents.send('abrir-mediacao', String(id));
+});
+ipcMain.on('fechar-painel', () => painel?.hide());
 
 // ---- atualizacao automatica ----
 autoUpdater.autoDownload = true;
@@ -79,6 +112,7 @@ app.whenReady().then(() => {
             if (!avisou && tray) { avisou = true; tray.displayBalloon({ title: 'Mediações ML continua rodando', content: 'O monitor de mediações segue ativo na bandeja.', iconType: 'info' }); }
         });
         criarBandeja();
+        criarPainel();
         if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true, args: ['--segundo-plano'] });
         monitor.iniciarAgendador();
     });
@@ -89,7 +123,8 @@ function criarBandeja() {
     tray.setToolTip('Mediações ML — monitor ativo');
     tray.setContextMenu(Menu.buildFromTemplate([
         { label: 'Abrir Mediações ML', click: () => mostrarJanela() },
-        { label: 'Atualizar mediações agora', click: () => { monitor.sincronizar().catch(() => {}); mostrarJanela(); } },
+        { label: 'Mostrar painel de mediações', click: () => mostrarPainel() },
+        { label: 'Atualizar mediações agora', click: () => { monitor.sincronizar().catch(() => {}); mostrarPainel(); } },
         { type: 'separator' },
         { label: 'Verificar atualização do app', click: () => { verificarUpdate(); mostrarJanela(); } },
         { label: 'Sair', click: () => { encerrando = true; monitor.pararAgendador(); server.stop(); app.quit(); } },

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mediações — painel</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+<style>
+:root { --bg:#111318; --s1:#191c23; --sep:rgba(255,255,255,.08); --l1:#f2f3f5; --l2:#b7bac2; --l3:#80848f; --ac:#7b79f5;
+        --vermelho:#ff453a; --laranja:#ff9f0a; --verde:#30d158; }
+* { box-sizing:border-box; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--l1); font:13px/1.45 -apple-system,"Segoe UI",Inter,Roboto,sans-serif; overflow:hidden; user-select:none; }
+.topo { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--sep); -webkit-app-region:drag; }
+.topo img { width:20px; height:20px; border-radius:6px; }
+.topo b { font-size:13px; }
+.topo .n { background:var(--ac); color:#fff; border-radius:999px; padding:0 8px; font-size:11px; font-weight:800; }
+.topo button { -webkit-app-region:no-drag; margin-left:auto; background:none; border:0; color:var(--l2); cursor:pointer; font-size:15px; padding:2px 4px; }
+.topo button + button { margin-left:0; }
+.lista { height:calc(100% - 82px); overflow:auto; padding:8px; display:flex; flex-direction:column; gap:6px; }
+.it { background:var(--s1); border:1px solid var(--sep); border-left:3px solid var(--l3); border-radius:10px; padding:9px 10px; cursor:pointer; }
+.it:hover { border-color:rgba(255,255,255,.2); }
+.it.alta { border-left-color:var(--vermelho); } .it.media { border-left-color:var(--laranja); } .it.baixa { border-left-color:var(--verde); }
+.it .t { font-weight:700; font-size:12.5px; }
+.it .r { color:var(--l2); font-size:12px; margin-top:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.it .m { display:flex; gap:6px; margin-top:5px; font-size:11px; color:var(--l3); flex-wrap:wrap; }
+.ok { color:var(--verde); } .falta { color:var(--laranja); }
+.rodape { position:absolute; bottom:0; left:0; right:0; padding:8px 12px; border-top:1px solid var(--sep); font-size:11px; color:var(--l3); display:flex; justify-content:space-between; align-items:center; background:var(--bg); }
+.rodape a { color:#b4b3ff; cursor:pointer; text-decoration:none; font-weight:600; }
+.vazio { color:var(--l3); text-align:center; padding:30px 10px; }
+</style>
+</head>
+<body>
+<div class="topo">
+  <img src="assets/icon.png" alt=""><b>Mediações</b><span class="n" id="n">0</span>
+  <button id="att" title="Atualizar agora"><i class="bi bi-arrow-repeat"></i></button>
+  <button id="fechar" title="Esconder painel (volta pela bandeja)"><i class="bi bi-x-lg"></i></button>
+</div>
+<div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
+<div class="rodape"><span id="estado">—</span><a id="abrirApp">Abrir o app</a></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const NOME = { flavia: 'Flavia', cordeiro: 'Cordeiro' };
+const quando = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+const tema = (t) => String(t || '').replace(/\s*\([A-Z]{2,4}\d+\)\s*$/, '');
+async function carregar() {
+  try {
+    const p = await (await fetch('/api/painel')).json();
+    const L = p.itens.filter(m => ['pendente', 'auditando'].includes(m.status));
+    const aguardando = p.itens.filter(m => m.status === 'aguardando').length;
+    $('n').textContent = L.length;
+    $('lista').innerHTML = L.length ? L.map(m => `<div class="it ${esc(m.prioridade)}" data-id="${esc(m.mediacao_id)}">
+        <div class="t">${esc(tema(m.tema))}</div>
+        <div class="r">${esc(m.resumo || m.pergunta_original)}</div>
+        <div class="m"><span>${NOME[m.conta] || esc(m.conta)}</span>${m.prazo_resposta ? `<span>⏱ ${quando(m.prazo_resposta)}</span>` : ''}
+          ${m.tem_resposta ? '<span class="ok">● resposta pronta</span>' : '<span class="falta">● sem resposta</span>'}${m.status === 'auditando' ? '<span>em revisão</span>' : ''}</div></div>`).join('')
+      : `<div class="vazio">Nenhuma mediação esperando resposta.${aguardando ? `<br>${aguardando} aguardando o Mercado Livre.` : ''}</div>`;
+    document.querySelectorAll('.it').forEach(el => el.onclick = () => window.electronAPI && window.electronAPI.abrirMediacao(el.dataset.id));
+    const e = p.estado;
+    const ult = Object.values(e.ultimo || {}).map(x => x.quando).sort().pop();
+    $('estado').textContent = e.rodando ? (e.etapa || 'atualizando…') : (ult ? 'atualizado às ' + new Date(ult).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'buscando no ML…') + (aguardando && L.length ? ` · ${aguardando} aguardando` : '');
+    $('att').disabled = e.rodando;
+  } catch (e) { $('lista').innerHTML = `<div class="vazio">Erro: ${esc(e.message)}</div>`; }
+}
+$('att').onclick = async () => { await fetch('/api/sincronizar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); carregar(); };
+$('fechar').onclick = () => window.electronAPI && window.electronAPI.fecharPainel();
+$('abrirApp').onclick = () => window.electronAPI && window.electronAPI.abrirMediacao('');
+carregar();
+setInterval(carregar, 15000);
+if (window.electronAPI) window.electronAPI.onRecarregar(() => carregar());
+</script>
+</body>
+</html>

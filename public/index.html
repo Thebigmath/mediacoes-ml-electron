@@ -295,7 +295,17 @@ $('cfgSalvar').onclick = async () => { if (!$('cfgChave').value.trim()) return; 
 $('cfgSalvarOllama').onclick = async () => { await api('/config', { body: { ollama_modelo: $('cfgOllama').value } }); carregarConfig(); };
 
 // ---- atualizacao do app ----
+// clique numa mediacao do painel lateral: abre a aba Mediacoes ja nela
+async function abrirDoPainel(id) {
+  document.querySelector('.abas button[data-v="mediacoes"]').click();
+  if ($('conta').value) { $('conta').value = ''; }
+  await carregar();
+  const m = painel && painel.itens.find(x => x.mediacao_id === id);
+  if (m && $('filtro').value && m.status !== $('filtro').value) { $('filtro').value = ''; desenharLista(); }
+  abrir(id);
+}
 if (window.electronAPI) {
+  window.electronAPI.onAbrirMediacao(id => abrirDoPainel(id));
   window.electronAPI.onUpdateAvailable(v => { $('faixaUpd').textContent = `Baixando a atualização ${v}…`; $('faixaUpd').classList.add('on'); });
   window.electronAPI.onUpdateDownloaded(v => { $('faixaUpd').innerHTML = `Atualização ${esc(v || '')} pronta. <button class="btn" onclick="window.electronAPI.installUpdate()">Instalar agora</button>`; $('faixaUpd').classList.add('on'); });
 }
