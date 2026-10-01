@@ -45,6 +45,7 @@ router.post('/sincronizar', (req, res) => {
 });
 router.get('/estado', (req, res) => res.json(monitor.estado));
 
+router.post('/mediacao/:id/atualizar', (req, res) => monitor.atualizarUma(req.params.id).then(m => res.json({ ok: true, mediacao: m })).catch(erro(res)));
 router.post('/mediacao/:id/analisar', (req, res) => monitor.analisarUma(req.params.id).then(m => res.json({ ok: true, mediacao: m })).catch(erro(res)));
 router.post('/mediacao/:id/reescrever', (req, res) => monitor.reescrever(req.params.id, (req.body || {}).tom).then(r => res.json(r)).catch(erro(res)));
 router.post('/mediacao/:id/rascunho', (req, res) => {

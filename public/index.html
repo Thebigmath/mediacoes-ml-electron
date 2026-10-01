@@ -220,13 +220,18 @@ function mostrarEstado(e) {
   $('faixaErr').innerHTML = (e.erros || []).slice(0, 4).map(esc).join('<br>');
 }
 
-async function abrir(id) {
+async function abrir(id, semReler) {
   sel = id; desenharLista();
-  $('det').innerHTML = '<div class="vazio">Carregando…</div>';
+  if (!semReler) $('det').innerHTML = '<div class="vazio">Carregando a conversa no Mercado Livre…</div>';
+  // relê a conversa no ML ao abrir (a resposta do mediador aparece na hora)
+  if (!semReler) { try { await api('/mediacao/' + id + '/atualizar', { body: {} }); } catch {} }
   const d = await api('/mediacao/' + id); atual = d.mediacao;
   const m = atual, a = m.analise || {};
   const conversa = (m.historico_ml || []).map(x => `<div class="msg ${esc(x.remetente)}"><div class="de">${QUEM[x.remetente] || esc(x.remetente)}${x.destinatario ? ' → ' + (QUEM[x.destinatario] || esc(x.destinatario)) : ''}</div>${esc(x.texto)}<div class="q">${quando(x.quando)}${x.moderacao && x.moderacao !== 'clean' ? ' · moderada pelo ML' : ''}</div></div>`).join('') || '<div class="sub">Sem mensagens.</div>';
-  const podeResponder = m.status_ml === 'opened' && m.acao_disponivel && m.status !== 'enviada';
+  // e uma conversa: a caixa fica aberta sempre que o ML deixa responder, mesmo depois de enviar
+  const podeResponder = m.status_ml === 'opened' && !!m.acao_disponivel;
+  const ultimaMsg = (m.historico_ml || [])[(m.historico_ml || []).length - 1];
+  const esperandoNos = ultimaMsg && ultimaMsg.remetente !== 'respondent';
   const para = m.destinatario === 'mediator' ? 'o mediador do Mercado Livre' : 'o comprador';
   $('det').innerHTML = `
     <h2>${esc(m.tema)}</h2>
@@ -240,9 +245,13 @@ async function abrir(id) {
     ${(a.provas_faltantes || []).length ? `<div class="bloco"><h4>Confirmar antes de enviar</h4><div class="caixa">${a.provas_faltantes.map(p => '• ' + esc(p)).join('<br>')}</div></div>` : ''}
     <div class="bloco"><h4>Conversa no Mercado Livre</h4><div class="caixa conversa">${conversa}</div></div>
     <div class="bloco"><h4>Resposta ${podeResponder ? '(vai para ' + para + ')' : ''}</h4>
-      <textarea class="resp" id="resp" ${m.status === 'enviada' ? 'readonly' : ''}>${esc(m.status === 'enviada' ? (m.resposta_enviada || m.mensagem_sugerida) : m.mensagem_sugerida)}</textarea>
+      ${podeResponder && esperandoNos ? `<div class="linha" style="margin:0 0 8px"><span class="sub">Resposta rápida:</span>
+        <button class="btn" onclick="$('resp').value='Sim.';$('resp').focus()">Sim</button>
+        <button class="btn" onclick="$('resp').value='Não.';$('resp').focus()">Não</button></div>` : ''}
+      ${m.status === 'enviada' && !esperandoNos ? `<div class="sub" style="margin-bottom:6px">Última resposta enviada em ${quando(m.enviada_em)}. Aguardando o ${m.destinatario === 'mediator' ? 'mediador' : 'comprador'} — a caixa continua aberta se quiser complementar.</div>` : ''}
+      <textarea class="resp" id="resp" ${podeResponder ? '' : 'readonly'} placeholder="Escreva a resposta…">${esc(m.mensagem_sugerida || '')}</textarea>
       <div class="acoes">
-        <button class="btn" onclick="analisar()"><i class="bi bi-stars"></i> ${m.mensagem_sugerida ? 'Refazer análise' : 'Gerar análise e resposta'}</button>
+        <button class="btn" onclick="analisar()" ${podeResponder ? '' : 'disabled'}><i class="bi bi-stars"></i> ${m.mensagem_sugerida ? 'Refazer análise' : 'Gerar resposta com a IA'}</button>
         <select id="tom"><option value="firme">Mais firme</option><option value="conciliador">Mais conciliador</option><option value="tecnico">Mais técnico</option></select>
         <button class="btn" onclick="reescrever()" ${m.mensagem_sugerida ? '' : 'disabled'}><i class="bi bi-arrow-repeat"></i> Reescrever</button>
         <button class="btn" onclick="salvar()"><i class="bi bi-save"></i> Salvar revisão</button>
@@ -286,7 +295,7 @@ $('modalSim').onclick = async () => {
     const r = await api('/mediacao/' + sel + '/enviar', { body: { texto: txt, editada: txt !== (atual.mensagem_sugerida || '').trim(), confirmacao: 'ENVIAR' } });
     $('modal').classList.remove('on');
     msgAcao(r.sucesso ? 'Resposta enviada ao Mercado Livre.' : 'Não enviou: ' + r.erro);
-    if (r.sucesso) { await carregar(); await abrir(sel); }
+    if (r.sucesso) { await carregar(); await abrir(sel, true); msgAcao('Resposta enviada ao Mercado Livre.'); }
   } catch (e) { msgAcao('Erro: ' + e.message); $('modal').classList.remove('on'); }
   $('modalSim').disabled = false;
 };
