@@ -80,6 +80,21 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
 .termsaida .ok { color:var(--verde); } .termsaida .erro { color:var(--vermelho); } .termsaida .aviso { color:var(--laranja); } .termsaida .info { color:var(--l2); } .termsaida .cmd { color:#b4b3ff; margin-top:6px; }
 .termlinha { display:flex; align-items:center; gap:8px; margin-top:8px; background:#07080b; border:1px solid var(--sep); border-radius:10px; padding:4px 10px; font:13px ui-monospace,Consolas,monospace; }
 .termlinha span { color:var(--ac); font-weight:800; } .termlinha input { flex:1; background:none; border:0; outline:none; font:inherit; padding:6px 0; }
+.mtgrade { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:1000px) { .mtgrade { grid-template-columns:1fr; } }
+.barras { margin-top:8px; display:flex; flex-direction:column; gap:7px; }
+.barra .t { display:flex; justify-content:space-between; gap:10px; font-size:13px; }
+.barra .t span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.barra .t span:last-child { color:var(--l3); white-space:nowrap; font-size:12px; }
+.barra .b { height:6px; border-radius:3px; background:rgba(255,255,255,.06); margin-top:3px; overflow:hidden; }
+.barra .b i { display:block; height:100%; background:var(--ac); border-radius:3px; }
+.sugs { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; margin-top:8px; }
+.sug { background:var(--s2); border:1px solid var(--sep); border-radius:12px; padding:12px; }
+.sug .h { display:flex; justify-content:space-between; gap:8px; font-weight:700; }
+.secao { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--l3); font-weight:800; margin:10px 2px 2px; display:flex; justify-content:space-between; }
+.filtros { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; }
+.filtros button { background:var(--s1); border:1px solid var(--sep); color:var(--l2); border-radius:999px; padding:4px 11px; font-size:12px; font-weight:700; cursor:pointer; }
+.filtros button.on { background:var(--ac); border-color:var(--ac); color:#fff; }
 </style>
 </head>
 <body>
@@ -87,6 +102,7 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
   <div class="marca"><img src="assets/icon.png" alt=""> Harvey <span class="sub" style="font-weight:600">· mediações</span></div>
   <div class="abas">
     <button data-v="mediacoes" class="on"><i class="bi bi-scale"></i> Mediações</button>
+    <button data-v="metricas"><i class="bi bi-graph-down-arrow"></i> Métricas</button>
     <button data-v="dev"><i class="bi bi-terminal"></i> Área do desenvolvedor</button>
     <button data-v="config"><i class="bi bi-gear"></i> Configurações</button>
   </div>
@@ -104,13 +120,32 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
     <div class="cards" id="cards"></div>
     <div class="grade">
       <div>
-        <div class="linha" style="margin:0 0 10px">
-          <select id="filtro"><option value="pendente">Pendentes</option><option value="auditando">Em revisão</option><option value="aguardando">Aguardando o ML</option><option value="enviada">Enviadas</option><option value="encerrada">Encerradas no ML</option><option value="">Todas</option></select>
-        </div>
+        <div class="filtros" id="filtros"></div>
+        <select id="filtro" style="display:none"><option value="pendente">Pendentes</option><option value="auditando">Em revisão</option><option value="aguardando">Aguardando o ML</option><option value="enviada">Enviadas</option><option value="encerrada">Encerradas no ML</option><option value="">Todas</option></select>
         <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
       </div>
       <div class="det" id="det"><div class="vazio">Escolha uma mediação na lista.</div></div>
     </div>
+  </section>
+
+  <section class="vista" id="v-metricas">
+    <div class="linha" style="margin:0 0 14px;justify-content:space-between">
+      <div><div class="r">Reclamações encerradas</div><div class="sub" id="mtSub">—</div></div>
+      <div class="linha" style="margin:0">
+        <select id="mtDias"><option value="30">Últimos 30 dias</option><option value="60">Últimos 60 dias</option><option value="90" selected>Últimos 90 dias</option></select>
+        <button class="btn" id="mtAtualizar"><i class="bi bi-arrow-repeat"></i> Atualizar métricas</button>
+        <button class="btn pri" id="mtIA"><i class="bi bi-stars"></i> Analisar com a IA</button>
+      </div>
+    </div>
+    <div class="cards" id="mtCards"></div>
+    <div class="card" id="mtIACard" style="display:none;margin-bottom:14px"></div>
+    <div class="mtgrade">
+      <div class="card"><div class="r">Principais motivos</div><div class="sub">quantidade · comprador ganhou · reembolsado</div><div id="mtMotivos" class="barras"></div></div>
+      <div class="card"><div class="r">Produtos com mais reclamações</div><div class="sub">quantidade · reembolsado</div><div id="mtProdutos" class="barras"></div></div>
+      <div class="card"><div class="r">Por tipo</div><div id="mtTipos" class="barras"></div></div>
+      <div class="card"><div class="r">Como foram resolvidas</div><div id="mtResol" class="barras"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="r">Prejuízo direto — reclamações sem cobertura do ML</div><div id="mtPerdas"></div></div>
   </section>
 
   <section class="vista" id="v-dev">
@@ -184,6 +219,7 @@ document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
   if (b.dataset.v === 'config') carregarConfig();
+  if (b.dataset.v === 'metricas') carregarMetricas().then(() => { if (!mt.atualizado_em) $('mtAtualizar').click(); });
   if (b.dataset.v === 'dev') { ultimoLog = 0; carregarLogs(true); setTimeout(() => $('termIn').focus(), 50); }
 });
 
@@ -201,15 +237,30 @@ function desenharCards() {
   $('cards').innerHTML = c('Pendentes', s.pendente) + c('Prioridade alta', p.alta, 'var(--vermelho)') + c('Prioridade média', p.media, 'var(--laranja)')
     + c('Prioridade baixa', p.baixa, 'var(--verde)') + c('Em revisão', s.auditando, '#b4b3ff') + c('Aguardando o ML', s.aguardando, 'var(--l3)') + c('Enviadas', s.enviada, 'var(--verde)');
 }
+const ORDEM_P = { alta: 0, media: 1, baixa: 2 };
+// mais urgente primeiro: prazo para responder mais perto, depois prioridade
+function urgencia(a, b) {
+  const pa = a.prazo_resposta ? new Date(a.prazo_resposta).getTime() : Infinity, pb = b.prazo_resposta ? new Date(b.prazo_resposta).getTime() : Infinity;
+  return pa - pb || (ORDEM_P[a.prioridade] ?? 1) - (ORDEM_P[b.prioridade] ?? 1);
+}
+function desenharFiltros() {
+  const c = {}; for (const m of painel.itens) c[m.status] = (c[m.status] || 0) + 1;
+  const ops = [['pendente', 'Pendentes'], ['auditando', 'Em revisão'], ['aguardando', 'Aguardando o ML'], ['enviada', 'Enviadas'], ['encerrada', 'Encerradas'], ['', 'Todas']];
+  $('filtros').innerHTML = ops.map(([v, n]) => `<button class="${$('filtro').value === v ? 'on' : ''}" onclick="$('filtro').value='${v}';desenharLista()">${n} ${v ? (c[v] || 0) : painel.itens.length}</button>`).join('');
+}
 function desenharLista() {
+  desenharFiltros();
   const f = $('filtro').value;
-  const L = painel.itens.filter(m => !f || m.status === f);
-  $('lista').innerHTML = L.length ? L.map(m => `<div class="item ${m.mediacao_id === sel ? 'sel' : ''}" onclick="abrir('${m.mediacao_id}')">
+  const L = painel.itens.filter(m => !f || m.status === f).sort(urgencia);
+  // separa por conta quando a lista mostra as duas
+  const grupos = $('conta').value ? [[null, L]] : ['flavia', 'cordeiro'].map(c => [c, L.filter(m => m.conta === c)]).filter(([, g]) => g.length);
+  const item = (m) => `<div class="item ${m.mediacao_id === sel ? 'sel' : ''}" onclick="abrir('${m.mediacao_id}')">
       <div class="t">${esc(m.tema)}</div>
       <div class="p">${esc(m.resumo || m.pergunta_original)}</div>
       <div class="linha"><span class="chip ${m.prioridade}">${esc(m.prioridade)}</span><span class="chip ${m.status}">${STATUS[m.status] || esc(m.status)}</span>
       <span class="chip">${NOME[m.conta] || esc(m.conta)}</span>${m.prazo_resposta ? `<span class="chip" title="Prazo para responder">⏱ ${quando(m.prazo_resposta)}</span>` : ''}
-      ${m.moderadas ? '<span class="chip alta" title="O ML moderou mensagem nesta conversa">moderada</span>' : ''}${m.tem_resposta ? '' : '<span class="chip">sem resposta</span>'}</div></div>`).join('')
+      ${m.moderadas ? '<span class="chip alta" title="O ML moderou mensagem nesta conversa">moderada</span>' : ''}${m.tem_resposta ? '' : '<span class="chip">sem resposta</span>'}</div></div>`;
+  $('lista').innerHTML = L.length ? grupos.map(([c, g]) => (c ? `<div class="secao"><span>${NOME[c]}</span><span>${g.length}</span></div>` : '') + g.map(item).join('')).join('')
     : '<div class="vazio">Nenhuma mediação aqui.</div>';
 }
 function mostrarEstado(e) {
@@ -309,8 +360,63 @@ async function acompanhar() {
   mostrarEstado(e);
   if (e.rodando) tAcomp = setTimeout(acompanhar, 2000); else carregar();
 }
-$('conta').onchange = () => { sel = null; $('det').innerHTML = '<div class="vazio">Escolha uma mediação na lista.</div>'; carregar(); };
+$('conta').onchange = () => { if (document.querySelector('#v-metricas.on')) carregarMetricas(); sel = null; $('det').innerHTML = '<div class="vazio">Escolha uma mediação na lista.</div>'; carregar(); };
 $('filtro').onchange = () => desenharLista();
+
+// ---- metricas ----
+const R$ = (v) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let mt = null;
+function barras(lista, rot, val, max) {
+  max = max || Math.max(1, ...lista.map(x => x.qtd));
+  return lista.map(x => `<div class="barra"><div class="t"><span title="${esc(rot(x))}">${esc(rot(x))}</span><span>${val(x)}</span></div><div class="b"><i style="width:${Math.round(x.qtd / max * 100)}%"></i></div></div>`).join('') || '<div class="sub">Sem dados.</div>';
+}
+async function carregarMetricas() {
+  const q = new URLSearchParams({ dias: $('mtDias').value }); if ($('conta').value) q.set('conta', $('conta').value);
+  mt = await api('/metricas?' + q);
+  $('mtSub').textContent = mt.atualizado_em ? `${$('conta').value ? NOME[$('conta').value] : 'Flavia Stock e Cordeiro Car'} · atualizado em ${new Date(mt.atualizado_em).toLocaleString('pt-BR')}` : 'Ainda não atualizado: clique em "Atualizar métricas".';
+  const pct = (n) => mt.total ? Math.round(n / mt.total * 100) + '%' : '—';
+  const card = (r, n, cor, sub) => `<div class="card"><div class="r">${r}</div><div class="n" style="color:${cor || 'var(--l1)'};font-size:24px">${n}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+  $('mtCards').innerHTML = card('Reclamações encerradas', mt.total, '', `${mt.dias} dias`)
+    + card('Comprador ganhou', mt.comprador_ganhou, 'var(--vermelho)', pct(mt.comprador_ganhou) + ' das encerradas')
+    + card('Vendedor ganhou', mt.vendedor_ganhou, 'var(--verde)', `${pct(mt.vendedor_ganhou)} · ${mt.dividido} divididas`)
+    + card('Reembolsado aos compradores', R$(mt.reembolsado_total), 'var(--laranja)', 'total dos pedidos em que o comprador ganhou')
+    + card('Com cobertura do ML', R$(mt.coberto_ml), '#8ec5ff', `${mt.qtd_coberto} reclamações: o ML aplicou a cobertura`)
+    + card('Prejuízo direto', R$(mt.prejuizo_direto), mt.prejuizo_direto ? 'var(--vermelho)' : 'var(--verde)', `${mt.qtd_sem_cobertura} reclamação(ões) sem cobertura`);
+  $('mtMotivos').innerHTML = barras(mt.motivos, x => x.nome, x => `${x.qtd} · ${x.comprador_ganhou} · ${R$(x.reembolsado)}`);
+  $('mtProdutos').innerHTML = barras(mt.produtos, x => x.titulo || x.chave, x => `${x.qtd} · ${R$(x.reembolsado)}`);
+  $('mtTipos').innerHTML = barras(mt.por_tipo, x => x.nome, x => `${x.qtd} · comprador ganhou ${x.comprador_ganhou}`);
+  $('mtResol').innerHTML = barras(mt.por_resolucao.slice(0, 8), x => x.nome, x => x.qtd);
+  $('mtPerdas').innerHTML = mt.perdas.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
+    <tr style="color:var(--l3);text-align:left"><th>Data</th><th>Conta</th><th>Produto</th><th>Motivo</th><th>Resolução</th><th style="text-align:right">Valor</th></tr>
+    ${mt.perdas.map(x => `<tr style="border-top:1px solid var(--sep)"><td>${new Date(x.data).toLocaleDateString('pt-BR')}</td><td>${NOME[x.conta]}</td><td>${esc((x.produto || '').slice(0, 45))}</td><td>${esc(x.motivo)}</td><td>${esc(x.resolucao || '')}</td><td style="text-align:right;color:var(--vermelho);font-weight:700">${R$(x.valor)}</td></tr>`).join('')}</table>`
+    : '<div class="sub" style="margin-top:6px">Nenhuma reclamação sem cobertura no período.</div>';
+  desenharIA(mt.ia);
+}
+function desenharIA(a) {
+  const el = $('mtIACard');
+  if (!a) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const imp = { alto: 'alta', medio: 'media', baixo: 'baixa' };
+  el.innerHTML = `<div class="r"><i class="bi bi-stars"></i> Análise da IA <span class="sub">· ${esc(a.modelo || '')} · ${new Date(a.analisado_em).toLocaleString('pt-BR')}</span></div>
+    <div style="margin-top:6px">${esc(a.resumo || '')}</div>
+    ${a.prejuizo ? `<div class="sub" style="margin-top:6px">${esc(a.prejuizo)}</div>` : ''}
+    ${(a.alertas || []).length ? `<div class="bloco"><h4>Atenção</h4>${a.alertas.map(x => `<div class="aviso">• ${esc(x)}</div>`).join('')}</div>` : ''}
+    ${(a.principais_causas || []).length ? `<div class="bloco"><h4>Principais causas</h4>${a.principais_causas.map(x => `<div>• <b>${esc(x.causa)}</b> — ${esc(x.porque)}</div>`).join('')}</div>` : ''}
+    ${(a.sugestoes || []).length ? `<div class="bloco"><h4>Sugestões</h4><div class="sugs">${a.sugestoes.map(x => `<div class="sug"><div class="h"><span>${esc(x.titulo)}</span><span class="chip ${imp[x.impacto] || ''}">impacto ${esc(x.impacto)}</span></div><div class="sub" style="margin-top:4px;color:var(--l2)">${esc(x.detalhe)}</div>${x.relacionado ? `<div class="sub" style="margin-top:4px">${esc(x.relacionado)}</div>` : ''}</div>`).join('')}</div></div>` : ''}`;
+}
+$('mtDias').onchange = () => carregarMetricas();
+$('mtAtualizar').onclick = async () => {
+  const b = $('mtAtualizar'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> Lendo no Mercado Livre…';
+  try { await api('/metricas/atualizar', { body: { dias: Number($('mtDias').value) } }); await carregarMetricas(); }
+  catch (e) { $('mtSub').textContent = 'Erro: ' + e.message; }
+  b.disabled = false; b.innerHTML = '<i class="bi bi-arrow-repeat"></i> Atualizar métricas';
+};
+$('mtIA').onclick = async () => {
+  const b = $('mtIA'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> A IA está analisando…';
+  try { const a = await api('/metricas/ia', { body: { dias: Number($('mtDias').value), conta: $('conta').value || undefined } }); desenharIA(a); }
+  catch (e) { $('mtIACard').style.display = ''; $('mtIACard').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; }
+  b.disabled = false; b.innerHTML = '<i class="bi bi-stars"></i> Analisar com a IA';
+};
 
 // ---- area do desenvolvedor ----
 let logs = [], logSel = null, ultimoLog = 0, tLogs = null;

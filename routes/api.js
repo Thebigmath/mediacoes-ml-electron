@@ -87,4 +87,23 @@ router.get('/dev/logs', (req, res) => res.json(log.listar({ area: req.query.area
 router.post('/dev/cmd', (req, res) => dev.executar((req.body || {}).linha).then(r => res.json(Array.isArray(r) ? { linhas: r } : r)).catch(erro(res)));
 router.get('/dev/comandos', (req, res) => res.json(Object.entries(dev.COMANDOS).map(([k, v]) => ({ comando: k, ajuda: v.ajuda }))));
 
+// Metricas de reclamacoes encerradas + analise da IA
+const metricas = require('../lib/metricas');
+let iaMetricas = {};   // ultima analise por periodo/conta (na memoria)
+router.get('/metricas', (req, res) => {
+    const dias = Number(req.query.dias) || 90; const conta = req.query.conta || undefined;
+    res.json({ ...metricas.resumo({ dias, conta }), ia: iaMetricas[`${dias}|${conta || ''}`] || null });
+});
+router.post('/metricas/atualizar', (req, res) => {
+    const dias = Number((req.body || {}).dias) || 90;
+    metricas.coletar(Math.max(dias, 90)).then(() => res.json({ ok: true })).catch(erro(res));
+});
+router.post('/metricas/ia', (req, res) => {
+    const dias = Number((req.body || {}).dias) || 90; const conta = (req.body || {}).conta || undefined;
+    const r = metricas.resumo({ dias, conta });
+    if (!r.total) return res.status(400).json({ erro: 'Sem reclamações no período. Clique em Atualizar métricas primeiro.' });
+    ia.analisarMetricas(r).then(a => { iaMetricas[`${dias}|${conta || ''}`] = a; log.info('ia', 'IA_METRICAS', `Análise das métricas (${dias} dias)`, { modelo: a.modelo }); res.json(a); })
+        .catch(e => { log.erro('ia', 'IA_ERRO', `Métricas: ${e.message}`); res.status(500).json({ erro: e.message }); });
+});
+
 module.exports = router;
