@@ -149,6 +149,15 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
   </section>
 
   <section class="vista" id="v-dev">
+    <div class="card" id="devTrava" style="max-width:420px;margin:40px auto;text-align:center">
+      <i class="bi bi-shield-lock" style="font-size:34px;color:var(--ac)"></i>
+      <h3 style="margin:8px 0 4px">Área do desenvolvedor</h3>
+      <div class="sub" style="margin-bottom:14px">Digite a senha para ver os logs e usar o terminal.</div>
+      <div class="linha" style="justify-content:center"><input id="devSenha" type="password" autocomplete="off" placeholder="Senha" style="width:220px"><button class="btn pri" id="devEntrar">Entrar</button></div>
+      <div class="aviso" id="devErro" style="margin-top:8px"></div>
+    </div>
+    <div id="devConteudo" style="display:none">
+    <div class="linha" style="margin:0 0 10px;justify-content:flex-end"><button class="btn" id="devBloquear"><i class="bi bi-lock"></i> Bloquear</button></div>
     <div class="devgrade">
       <div class="card devlogs">
         <div class="linha" style="margin:0 0 8px;justify-content:space-between">
@@ -170,6 +179,7 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
       <div class="r" style="margin-bottom:6px">Terminal <span class="sub">— digite <b>ajuda</b> para ver os comandos · <b>status</b> testa tudo</span></div>
       <div class="termsaida" id="termSaida"></div>
       <div class="termlinha"><span>›</span><input id="termIn" autocomplete="off" spellcheck="false" placeholder="ex.: [m.(test(conectors))], [m.(log(IA_!))], status, mt, logs ia 20"></div>
+    </div>
     </div>
   </section>
 
@@ -207,8 +217,12 @@ const QUEM = { complainant: 'Comprador', respondent: 'Você (vendedor)', mediato
 const ACAO = { responder: 'Responder', aguardar_comprador: 'Aguardar o comprador', aceitar_reembolso_parcial: 'Aceitar reembolso parcial', aceitar_reembolso_total: 'Aceitar reembolso total' };
 const STATUS = { pendente: 'Pendente', aguardando: 'Aguardando o ML', auditando: 'Em revisão', enviada: 'Enviada', encerrada: 'Encerrada no ML' };
 const quando = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+let devToken = '';   // sessao da Area do desenvolvedor (so na memoria: some ao fechar o app)
 async function api(url, opt) {
-  const r = await fetch('/api' + url, opt && opt.body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opt.body) } : opt);
+  const h = { 'Content-Type': 'application/json' };
+  if (devToken && url.startsWith('/dev/')) h['x-dev-token'] = devToken;
+  const r = await fetch('/api' + url, opt && opt.body ? { method: 'POST', headers: h, body: JSON.stringify(opt.body) } : { ...(opt || {}), headers: h });
+  if (r.status === 401 && url.startsWith('/dev/') && !url.startsWith('/dev/entrar')) { devToken = ''; mostrarTrava(); }
   const d = await r.json().catch(() => ({}));
   if (!r.ok && !('sucesso' in d)) throw new Error(d.erro || 'erro ' + r.status);
   return d;
@@ -220,7 +234,7 @@ document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
   if (b.dataset.v === 'config') carregarConfig();
   if (b.dataset.v === 'metricas') carregarMetricas().then(() => { if (!mt.atualizado_em) $('mtAtualizar').click(); });
-  if (b.dataset.v === 'dev') { ultimoLog = 0; carregarLogs(true); setTimeout(() => $('termIn').focus(), 50); }
+  if (b.dataset.v === 'dev') { if (devToken) abrirDev(); else mostrarTrava(); }
 });
 
 // ---- painel ----
@@ -417,6 +431,21 @@ $('mtIA').onclick = async () => {
   catch (e) { $('mtIACard').style.display = ''; $('mtIACard').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; }
   b.disabled = false; b.innerHTML = '<i class="bi bi-stars"></i> Analisar com a IA';
 };
+
+// ---- area do desenvolvedor: senha ----
+function mostrarTrava() { $('devTrava').style.display = ''; $('devConteudo').style.display = 'none'; $('devSenha').value = ''; setTimeout(() => $('devSenha').focus(), 50); }
+function abrirDev() { $('devTrava').style.display = 'none'; $('devConteudo').style.display = ''; ultimoLog = 0; carregarLogs(true); setTimeout(() => $('termIn').focus(), 50); }
+async function entrarDev() {
+  $('devErro').textContent = '';
+  try {
+    const r = await fetch('/api/dev/entrar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: $('devSenha').value }) });
+    const d = await r.json(); $('devSenha').value = '';
+    if (d.ok) { devToken = d.token; abrirDev(); } else $('devErro').textContent = d.erro || 'Senha incorreta.';
+  } catch (e) { $('devErro').textContent = e.message; }
+}
+$('devEntrar').onclick = entrarDev;
+$('devSenha').onkeydown = (e) => { if (e.key === 'Enter') entrarDev(); };
+$('devBloquear').onclick = async () => { try { await api('/dev/sair', { body: {} }); } catch {} devToken = ''; mostrarTrava(); };
 
 // ---- area do desenvolvedor ----
 let logs = [], logSel = null, ultimoLog = 0, tLogs = null;

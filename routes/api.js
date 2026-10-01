@@ -7,6 +7,7 @@ const contas = require('../lib/contas');
 const ia = require('../lib/ia');
 const log = require('../lib/log');
 const dev = require('../lib/dev');
+const senha = require('../lib/senha');
 
 const router = express.Router();
 const erro = (res) => (e) => { log.erro('app', 'API_ERRO', e.message); res.status(500).json({ erro: e.message }); };
@@ -63,6 +64,9 @@ router.post('/mediacao/:id/enviar', (req, res) => {
 router.post('/chat', (req, res) => {
     const b = req.body || {};
     if (!String(b.mensagem || '').trim()) return res.status(400).json({ erro: 'Mensagem vazia.' });
+    // a senha da Area do desenvolvedor nunca vai para a IA
+    const todo = [b.mensagem, ...(b.historico || []).map(h => h && h.content)].join(' ');
+    if (senha.contemSenha(todo)) { log.aviso('dev', 'IA_BLOQUEADA', 'Mensagem com dado protegido não foi enviada para a IA'); return res.status(400).json({ erro: 'Essa mensagem contém um dado protegido e não foi enviada para a IA.' }); }
     ia.conversar(String(b.mensagem), b.historico || []).then(r => res.json({ resposta: r })).catch(erro(res));
 });
 
@@ -82,6 +86,14 @@ router.post('/config', (req, res) => {
 });
 
 // Area do desenvolvedor: logs e terminal
+router.post('/dev/entrar', (req, res) => {
+    const r = senha.entrar(String((req.body || {}).senha || ''));
+    if (r.ok) log.info('dev', 'DEV_ENTROU', 'Área do desenvolvedor desbloqueada');
+    else log.aviso('dev', 'DEV_SENHA_ERRADA', r.erro);   // a senha digitada nunca vai para o log
+    res.status(r.ok ? 200 : 401).json(r);
+});
+router.post('/dev/sair', (req, res) => { senha.sair(req.get('x-dev-token')); res.json({ ok: true }); });
+router.use('/dev', senha.exigir);   // tudo abaixo de /api/dev exige a sessao
 router.get('/dev/logs', (req, res) => res.json(log.listar({ area: req.query.area || undefined, nivel: req.query.nivel || undefined,
     desde: Number(req.query.desde) || 0, limite: Number(req.query.limite) || 300 })));
 router.post('/dev/cmd', (req, res) => dev.executar((req.body || {}).linha).then(r => res.json(Array.isArray(r) ? { linhas: r } : r)).catch(erro(res)));
