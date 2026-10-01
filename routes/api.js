@@ -84,7 +84,7 @@ router.post('/config', (req, res) => {
 // Area do desenvolvedor: logs e terminal
 router.get('/dev/logs', (req, res) => res.json(log.listar({ area: req.query.area || undefined, nivel: req.query.nivel || undefined,
     desde: Number(req.query.desde) || 0, limite: Number(req.query.limite) || 300 })));
-router.post('/dev/cmd', (req, res) => dev.executar((req.body || {}).linha).then(l => res.json({ linhas: l })).catch(erro(res)));
+router.post('/dev/cmd', (req, res) => dev.executar((req.body || {}).linha).then(r => res.json(Array.isArray(r) ? { linhas: r } : r)).catch(erro(res)));
 router.get('/dev/comandos', (req, res) => res.json(Object.entries(dev.COMANDOS).map(([k, v]) => ({ comando: k, ajuda: v.ajuda }))));
 
 module.exports = router;

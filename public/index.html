@@ -134,7 +134,7 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
     <div class="card term">
       <div class="r" style="margin-bottom:6px">Terminal <span class="sub">— digite <b>ajuda</b> para ver os comandos · <b>status</b> testa tudo</span></div>
       <div class="termsaida" id="termSaida"></div>
-      <div class="termlinha"><span>›</span><input id="termIn" autocomplete="off" spellcheck="false" placeholder="ex.: status, contas, ml, ia, ollama, banco, sync, logs ia 20, erros"></div>
+      <div class="termlinha"><span>›</span><input id="termIn" autocomplete="off" spellcheck="false" placeholder="ex.: [m.(test(conectors))], [m.(log(IA_!))], status, mt, logs ia 20"></div>
     </div>
   </section>
 
@@ -354,6 +354,9 @@ $('logArea').onchange = $('logNivel').onchange = () => { ultimoLog = 0; carregar
 $('logAuto').onchange = () => carregarLogs(false);
 
 const termHist = []; let termPos = 0;
+// modo conversa ([m.(input(send_msgIA))]): as linhas vao para a IA ate digitar "sair"
+let termModo = null; const termChat = [];
+function termPrompt() { document.querySelector('.termlinha span').textContent = termModo === 'ia' ? 'IA ›' : '›'; }
 function termEscrever(linhas, cmd) {
   const el = $('termSaida');
   if (cmd) el.insertAdjacentHTML('beforeend', `<div class="cmd">› ${esc(cmd)}</div>`);
@@ -367,14 +370,28 @@ $('termIn').onkeydown = async (ev) => {
   const linha = $('termIn').value.trim(); if (!linha) return;
   termHist.push(linha); termPos = termHist.length; $('termIn').value = '';
   if (linha === 'limpar' || linha === 'cls') { $('termSaida').innerHTML = ''; return; }
+  if (termModo === 'ia') {
+    if (/^(sair|exit)$/i.test(linha)) { termModo = null; termPrompt(); termEscrever([{ nivel: 'info', texto: 'Modo conversa fechado.' }], linha); return; }
+    $('termIn').disabled = true;
+    termEscrever([{ nivel: 'info', texto: 'IA escrevendo…' }], 'IA/msg = ' + linha);
+    try {
+      const r = await api('/chat', { body: { mensagem: linha, historico: termChat.slice(-10) } });
+      termChat.push({ role: 'user', content: linha }, { role: 'assistant', content: r.resposta });
+      $('termSaida').lastElementChild.remove(); termEscrever([{ nivel: 'ok', texto: 'IA: ' + r.resposta }]);
+    } catch (e) { $('termSaida').lastElementChild.remove(); termEscrever([{ nivel: 'erro', texto: 'IA: ' + e.message }]); }
+    $('termIn').disabled = false; $('termIn').focus(); return;
+  }
   $('termIn').disabled = true;
   termEscrever([{ nivel: 'info', texto: 'executando…' }], linha);
-  try { const r = await api('/dev/cmd', { body: { linha } }); $('termSaida').lastElementChild.remove(); termEscrever(r.linhas); }
+  try {
+    const r = await api('/dev/cmd', { body: { linha } }); $('termSaida').lastElementChild.remove(); termEscrever(r.linhas);
+    if (r.modo === 'ia') { termModo = 'ia'; termPrompt(); }
+  }
   catch (e) { termEscrever([{ nivel: 'erro', texto: e.message }]); }
   $('termIn').disabled = false; $('termIn').focus();
   carregarLogs(false);
 };
-termEscrever([{ nivel: 'info', texto: 'Terminal da Área do desenvolvedor. Digite "ajuda" para ver os comandos, "status" para testar tudo, "limpar" para limpar a tela.' }]);
+termEscrever([{ nivel: 'info', texto: 'Terminal da Área do desenvolvedor. Digite "ajuda" para ver os comandos, "mt" para os parâmetros da linguagem MT, "status" para testar tudo, "limpar" para limpar a tela.' }]);
 
 // ---- configuracoes ----
 async function carregarConfig() {
