@@ -1,6 +1,6 @@
 {
   "name": "mediacoes-ml",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Mediações do Mercado Livre com IA (Flavia Stock e Cordeiro Car)",
   "main": "main.js",
   "author": "Thebigmath",

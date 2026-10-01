@@ -10,6 +10,9 @@ app.use(express.static(path.join(__dirname, 'public'), { etag: true, lastModifie
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
 
 function start(porta, pronto) {
+    const log = require('./lib/log');
+    log.iniciar();
+    log.info('app', 'APP_INICIO', `Mediações ML v${require('./package.json').version} na porta ${porta}`);
     httpServer = app.listen(porta, '127.0.0.1', pronto);
     return httpServer;
 }

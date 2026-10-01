@@ -5,9 +5,11 @@ const banco = require('../lib/banco');
 const monitor = require('../lib/monitor');
 const contas = require('../lib/contas');
 const ia = require('../lib/ia');
+const log = require('../lib/log');
+const dev = require('../lib/dev');
 
 const router = express.Router();
-const erro = (res) => (e) => res.status(500).json({ erro: e.message });
+const erro = (res) => (e) => { log.erro('app', 'API_ERRO', e.message); res.status(500).json({ erro: e.message }); };
 const STORAGE = banco.STORAGE;
 const CONFIG = path.join(STORAGE, 'config.json');
 const lerCfg = () => { try { return JSON.parse(fs.readFileSync(CONFIG, 'utf8')); } catch { return {}; } };
@@ -77,5 +79,11 @@ router.post('/config', (req, res) => {
     fs.writeFileSync(CONFIG, JSON.stringify(c, null, 2), 'utf8');
     res.json({ ok: true });
 });
+
+// Area do desenvolvedor: logs e terminal
+router.get('/dev/logs', (req, res) => res.json(log.listar({ area: req.query.area || undefined, nivel: req.query.nivel || undefined,
+    desde: Number(req.query.desde) || 0, limite: Number(req.query.limite) || 300 })));
+router.post('/dev/cmd', (req, res) => dev.executar((req.body || {}).linha).then(l => res.json({ linhas: l })).catch(erro(res)));
+router.get('/dev/comandos', (req, res) => res.json(Object.entries(dev.COMANDOS).map(([k, v]) => ({ comando: k, ajuda: v.ajuda }))));
 
 module.exports = router;

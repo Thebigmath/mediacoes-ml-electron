@@ -65,6 +65,21 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
 .modal .caixa { max-width:560px; width:92%; background:var(--s1); padding:20px; }
 .chat { display:flex; flex-direction:column; gap:10px; max-height:calc(100vh - 290px); overflow:auto; margin-bottom:12px; }
 .chat .msg.user { background:rgba(123,121,245,.15); align-self:flex-end; } .chat .msg.assistant { background:var(--s2); align-self:flex-start; }
+.devgrade { display:grid; grid-template-columns:1fr 380px; gap:14px; }
+@media (max-width:1000px) { .devgrade { grid-template-columns:1fr; } }
+.loglista { height:calc(100vh - 470px); min-height:220px; overflow:auto; font:12px/1.5 ui-monospace,Consolas,monospace; }
+.lg { display:grid; grid-template-columns:62px 58px 1fr; gap:8px; padding:4px 6px; border-radius:6px; cursor:pointer; border-left:3px solid transparent; }
+.lg:hover { background:rgba(255,255,255,.04); } .lg.sel { background:rgba(123,121,245,.14); }
+.lg.erro { border-left-color:var(--vermelho); } .lg.aviso { border-left-color:var(--laranja); } .lg.info { border-left-color:rgba(255,255,255,.12); }
+.lg .h { color:var(--l3); } .lg .a { color:#b4b3ff; } .lg .c { font-weight:700; } .lg.erro .c { color:var(--vermelho); } .lg.aviso .c { color:var(--laranja); }
+.devexp h3 { margin:8px 0 4px; font-size:17px; } .devexp .tag { display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; margin-right:6px; }
+.tag.info { background:rgba(48,209,88,.14); color:var(--verde); } .tag.aviso { background:rgba(255,159,10,.15); color:var(--laranja); } .tag.erro { background:rgba(255,69,58,.15); color:var(--vermelho); }
+.devexp pre { white-space:pre-wrap; word-break:break-word; font:11.5px/1.5 ui-monospace,Consolas,monospace; background:var(--s2); border-radius:10px; padding:10px; color:var(--l2); max-height:200px; overflow:auto; }
+.term { margin-top:14px; }
+.termsaida { height:190px; overflow:auto; background:#07080b; border:1px solid var(--sep); border-radius:10px; padding:10px; font:12.5px/1.55 ui-monospace,Consolas,monospace; }
+.termsaida .ok { color:var(--verde); } .termsaida .erro { color:var(--vermelho); } .termsaida .aviso { color:var(--laranja); } .termsaida .info { color:var(--l2); } .termsaida .cmd { color:#b4b3ff; margin-top:6px; }
+.termlinha { display:flex; align-items:center; gap:8px; margin-top:8px; background:#07080b; border:1px solid var(--sep); border-radius:10px; padding:4px 10px; font:13px ui-monospace,Consolas,monospace; }
+.termlinha span { color:var(--ac); font-weight:800; } .termlinha input { flex:1; background:none; border:0; outline:none; font:inherit; padding:6px 0; }
 </style>
 </head>
 <body>
@@ -72,7 +87,7 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
   <div class="marca"><img src="assets/icon.png" alt=""> Mediações ML</div>
   <div class="abas">
     <button data-v="mediacoes" class="on"><i class="bi bi-scale"></i> Mediações</button>
-    <button data-v="testes"><i class="bi bi-chat-dots"></i> Sala de testes</button>
+    <button data-v="dev"><i class="bi bi-terminal"></i> Área do desenvolvedor</button>
     <button data-v="config"><i class="bi bi-gear"></i> Configurações</button>
   </div>
   <div class="dir">
@@ -98,13 +113,28 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
     </div>
   </section>
 
-  <section class="vista" id="v-testes">
-    <div class="card" style="max-width:900px">
-      <div class="r">Sala de testes</div>
-      <div class="sub" style="margin-bottom:12px">Converse com o Llama deste computador (Ollama) sobre casos e respostas. Nada aqui é enviado ao Mercado Livre.</div>
-      <div class="chat" id="chat"></div>
-      <div class="linha"><textarea id="chatTxt" rows="3" style="flex:1" placeholder="Ex.: o comprador diz que a peça veio quebrada, mas o pacote chegou íntegro. Como argumentar?"></textarea>
-      <button class="btn pri" id="chatBtn"><i class="bi bi-send"></i> Enviar</button></div>
+  <section class="vista" id="v-dev">
+    <div class="devgrade">
+      <div class="card devlogs">
+        <div class="linha" style="margin:0 0 8px;justify-content:space-between">
+          <div class="r">Logs do app <span class="sub" id="logQtd"></span></div>
+          <div class="linha" style="margin:0">
+            <select id="logArea"><option value="">Todas as áreas</option><option value="sync">Busca no ML (sync)</option><option value="ia">IA</option><option value="envio">Envio</option><option value="token">Token</option><option value="app">App</option><option value="update">Atualização</option><option value="dev">Terminal</option></select>
+            <select id="logNivel"><option value="">Todos</option><option value="erro">Só erros</option><option value="aviso">Só avisos</option><option value="info">Só normais</option></select>
+            <label class="sub"><input type="checkbox" id="logAuto" checked> ao vivo</label>
+          </div>
+        </div>
+        <div class="loglista" id="logLista"><div class="vazio">Carregando…</div></div>
+      </div>
+      <div class="card devexp" id="logExp">
+        <div class="r">Explicação do log</div>
+        <div class="vazio" style="padding:30px 10px">Clique num log para ver o que ele significa e o que fazer.</div>
+      </div>
+    </div>
+    <div class="card term">
+      <div class="r" style="margin-bottom:6px">Terminal <span class="sub">— digite <b>ajuda</b> para ver os comandos · <b>status</b> testa tudo</span></div>
+      <div class="termsaida" id="termSaida"></div>
+      <div class="termlinha"><span>›</span><input id="termIn" autocomplete="off" spellcheck="false" placeholder="ex.: status, contas, ml, ia, ollama, banco, sync, logs ia 20, erros"></div>
     </div>
   </section>
 
@@ -154,6 +184,7 @@ document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
   if (b.dataset.v === 'config') carregarConfig();
+  if (b.dataset.v === 'dev') { ultimoLog = 0; carregarLogs(true); setTimeout(() => $('termIn').focus(), 50); }
 });
 
 // ---- painel ----
@@ -272,17 +303,69 @@ async function acompanhar() {
 $('conta').onchange = () => { sel = null; $('det').innerHTML = '<div class="vazio">Escolha uma mediação na lista.</div>'; carregar(); };
 $('filtro').onchange = () => desenharLista();
 
-// ---- sala de testes ----
-const hist = [];
-function desenharChat() { $('chat').innerHTML = hist.map(h => `<div class="msg ${h.role}">${esc(h.content)}</div>`).join(''); $('chat').scrollTop = 1e9; }
-$('chatBtn').onclick = async () => {
-  const t = $('chatTxt').value.trim(); if (!t) return;
-  hist.push({ role: 'user', content: t }); $('chatTxt').value = ''; desenharChat();
-  hist.push({ role: 'assistant', content: 'pensando…' }); desenharChat(); $('chatBtn').disabled = true;
-  try { const r = await api('/chat', { body: { mensagem: t, historico: hist.slice(0, -2) } }); hist[hist.length - 1].content = r.resposta; }
-  catch (e) { hist[hist.length - 1].content = 'Erro: ' + e.message; }
-  $('chatBtn').disabled = false; desenharChat();
+// ---- area do desenvolvedor ----
+let logs = [], logSel = null, ultimoLog = 0, tLogs = null;
+const NIVEL = { info: 'normal', aviso: 'atenção', erro: 'erro' };
+const hora = (d) => new Date(d).toLocaleTimeString('pt-BR');
+async function carregarLogs(tudo) {
+  clearTimeout(tLogs);
+  const q = new URLSearchParams({ limite: 500 });
+  if ($('logArea').value) q.set('area', $('logArea').value);
+  if ($('logNivel').value) q.set('nivel', $('logNivel').value);
+  if (!tudo) q.set('desde', ultimoLog);
+  try {
+    const novos = await api('/dev/logs?' + q);
+    logs = tudo ? novos : logs.concat(novos);
+    if (logs.length > 1500) logs = logs.slice(-1500);
+    if (novos.length) ultimoLog = Math.max(ultimoLog, ...novos.map(e => e.id));
+    if (tudo || novos.length) desenharLogs(tudo);
+  } catch {}
+  if ($('logAuto').checked && document.querySelector('#v-dev.on')) tLogs = setTimeout(() => carregarLogs(false), 3000);
+}
+function desenharLogs(rolar) {
+  const el = $('logLista'); const noFim = el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
+  $('logQtd').textContent = `· ${logs.length} registros · ${logs.filter(e => e.nivel === 'erro').length} erro(s)`;
+  el.innerHTML = logs.length ? logs.map(e => `<div class="lg ${e.nivel} ${e.id === logSel ? 'sel' : ''}" data-id="${e.id}"><span class="h">${hora(e.quando)}</span><span class="a">${esc(e.area)}</span><span><span class="c">${esc(e.codigo)}</span> — ${esc(e.mensagem)}</span></div>`).join('') : '<div class="vazio">Nenhum log com esse filtro.</div>';
+  el.querySelectorAll('.lg').forEach(x => x.onclick = () => explicarLog(Number(x.dataset.id)));
+  if (rolar || noFim) el.scrollTop = el.scrollHeight;   // acompanha o fim, a menos que a pessoa tenha rolado para cima
+}
+function explicarLog(id) {
+  logSel = id; const e = logs.find(x => x.id === id); if (!e) return;
+  document.querySelectorAll('.lg').forEach(x => x.classList.toggle('sel', Number(x.dataset.id) === id));
+  const x = e.explicacao || {};
+  $('logExp').innerHTML = `<div class="r">Explicação do log</div>
+    <h3>${esc(x.titulo || e.codigo)}</h3>
+    <div><span class="tag ${e.nivel}">${NIVEL[e.nivel] || esc(e.nivel)}</span><span class="sub">${new Date(e.quando).toLocaleString('pt-BR')} · área ${esc(e.area)} · ${esc(e.codigo)}</span></div>
+    <div class="bloco"><h4>O que aconteceu</h4><div>${esc(e.mensagem)}</div></div>
+    <div class="bloco"><h4>O que isso significa</h4><div>${esc(x.explicacao || '')}</div></div>
+    <div class="bloco"><h4>O que fazer</h4><div>${esc(x.acao || '')}</div></div>
+    ${e.dados ? `<div class="bloco"><h4>Detalhes técnicos</h4><pre>${esc(JSON.stringify(e.dados, null, 2))}</pre></div>` : ''}`;
+}
+$('logArea').onchange = $('logNivel').onchange = () => { ultimoLog = 0; carregarLogs(true); };
+$('logAuto').onchange = () => carregarLogs(false);
+
+const termHist = []; let termPos = 0;
+function termEscrever(linhas, cmd) {
+  const el = $('termSaida');
+  if (cmd) el.insertAdjacentHTML('beforeend', `<div class="cmd">› ${esc(cmd)}</div>`);
+  el.insertAdjacentHTML('beforeend', linhas.map(l => `<div class="${esc(l.nivel)}">${l.nivel === 'ok' ? '✔ ' : l.nivel === 'erro' ? '✖ ' : l.nivel === 'aviso' ? '⚠ ' : ''}${esc(l.texto)}</div>`).join(''));
+  el.scrollTop = el.scrollHeight;
+}
+$('termIn').onkeydown = async (ev) => {
+  if (ev.key === 'ArrowUp') { if (termPos > 0) $('termIn').value = termHist[--termPos] || ''; ev.preventDefault(); return; }
+  if (ev.key === 'ArrowDown') { $('termIn').value = termHist[++termPos] || ''; ev.preventDefault(); return; }
+  if (ev.key !== 'Enter') return;
+  const linha = $('termIn').value.trim(); if (!linha) return;
+  termHist.push(linha); termPos = termHist.length; $('termIn').value = '';
+  if (linha === 'limpar' || linha === 'cls') { $('termSaida').innerHTML = ''; return; }
+  $('termIn').disabled = true;
+  termEscrever([{ nivel: 'info', texto: 'executando…' }], linha);
+  try { const r = await api('/dev/cmd', { body: { linha } }); $('termSaida').lastElementChild.remove(); termEscrever(r.linhas); }
+  catch (e) { termEscrever([{ nivel: 'erro', texto: e.message }]); }
+  $('termIn').disabled = false; $('termIn').focus();
+  carregarLogs(false);
 };
+termEscrever([{ nivel: 'info', texto: 'Terminal da Área do desenvolvedor. Digite "ajuda" para ver os comandos, "status" para testar tudo, "limpar" para limpar a tela.' }]);
 
 // ---- configuracoes ----
 async function carregarConfig() {

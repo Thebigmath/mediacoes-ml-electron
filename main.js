@@ -75,6 +75,7 @@ let updateReady = false;
 autoUpdater.on('update-available', (info) => mainWindow?.webContents.send('update-available', info.version));
 autoUpdater.on('update-downloaded', (info) => {
     updateReady = true;
+    require('./lib/log').info('update', 'UPDATE', `Versão ${(info && info.version) || ''} baixada, pronta para instalar`);
     mainWindow?.webContents.send('update-downloaded', info && info.version);
     if (Notification.isSupported()) {
         const n = new Notification({ title: `Mediações ML: atualização ${(info && info.version) || ''} pronta`, body: 'Clique para instalar agora (o app reinicia).' });
