@@ -1,7 +1,7 @@
 {
   "name": "mediacoes-ml",
-  "version": "1.0.4",
-  "description": "Mediações do Mercado Livre com IA (Flavia Stock e Cordeiro Car)",
+  "version": "1.0.5",
+  "description": "Harvey - Mediações do Mercado Livre com IA (Flavia Stock e Cordeiro Car)",
   "main": "main.js",
   "author": "Thebigmath",
   "license": "UNLICENSED",
@@ -24,7 +24,7 @@
     "directories": { "output": "dist" },
     "publish": { "provider": "github", "owner": "Thebigmath", "repo": "mediacoes-ml-electron", "releaseType": "release" },
     "win": { "target": "nsis", "icon": "public/assets/icon.ico" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Mediações ML" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Harvey" },
     "files": ["main.js", "preload.js", "server.js", "routes/**", "lib/**", "public/**", "package.json", "node_modules/**"],
     "asar": true
   }

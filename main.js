@@ -1,4 +1,4 @@
-// Mediações ML — processo principal do Electron (mesmo molde do Dashboard, app separado).
+// Harvey (app de Mediações do ML) — processo principal do Electron (mesmo molde do Dashboard, app separado).
 // Sobe o servidor local na porta 3005, abre a janela, fica na bandeja, avisa mediação nova
 // por notificação do Windows e se atualiza sozinho pelo GitHub (Thebigmath/mediacoes-ml-electron).
 const { app, BrowserWindow, ipcMain, shell, Notification, Tray, Menu, nativeImage, screen } = require('electron');
@@ -45,7 +45,7 @@ function criarPainel() {
     painel = new BrowserWindow({
         width: largura, height: altura, x: area.x + area.width - largura - 12, y: area.y + area.height - altura - 12,
         frame: false, resizable: true, minimizable: false, maximizable: false, alwaysOnTop: true, skipTaskbar: true, show: false,
-        title: 'Mediações', backgroundColor: '#111318',
+        title: 'Harvey — mediações', backgroundColor: '#111318',
         webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
     });
     painel.loadURL(URL + '/painel.html');
@@ -78,7 +78,7 @@ autoUpdater.on('update-downloaded', (info) => {
     require('./lib/log').info('update', 'UPDATE', `Versão ${(info && info.version) || ''} baixada, pronta para instalar`);
     mainWindow?.webContents.send('update-downloaded', info && info.version);
     if (Notification.isSupported()) {
-        const n = new Notification({ title: `Mediações ML: atualização ${(info && info.version) || ''} pronta`, body: 'Clique para instalar agora (o app reinicia).' });
+        const n = new Notification({ title: `Harvey: atualização ${(info && info.version) || ''} pronta`, body: 'Clique para instalar agora (o app reinicia).' });
         n.on('click', () => { encerrando = true; autoUpdater.quitAndInstall(); });
         n.show();
     }
@@ -97,7 +97,7 @@ ipcMain.on('open-external', (_, url) => { if (/^https:\/\//.test(url)) shell.ope
 app.whenReady().then(() => {
     server.start(PORTA, () => {
         mainWindow = new BrowserWindow({
-            width: 1400, height: 900, show: false, title: 'Mediações ML',
+            width: 1400, height: 900, show: false, title: 'Harvey',
             icon: path.join(__dirname, 'public/assets/icon.png'),
             webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
         });
@@ -110,7 +110,7 @@ app.whenReady().then(() => {
         mainWindow.on('close', (e) => {
             if (encerrando) return;
             e.preventDefault(); mainWindow.hide();
-            if (!avisou && tray) { avisou = true; tray.displayBalloon({ title: 'Mediações ML continua rodando', content: 'O monitor de mediações segue ativo na bandeja.', iconType: 'info' }); }
+            if (!avisou && tray) { avisou = true; tray.displayBalloon({ title: 'Harvey continua rodando', content: 'O monitor de mediações segue ativo na bandeja.', iconType: 'info' }); }
         });
         criarBandeja();
         criarPainel();
@@ -121,9 +121,9 @@ app.whenReady().then(() => {
 
 function criarBandeja() {
     tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'public/assets/tray.png')));
-    tray.setToolTip('Mediações ML — monitor ativo');
+    tray.setToolTip('Harvey — monitor de mediações ativo');
     tray.setContextMenu(Menu.buildFromTemplate([
-        { label: 'Abrir Mediações ML', click: () => mostrarJanela() },
+        { label: 'Abrir Harvey', click: () => mostrarJanela() },
         { label: 'Mostrar painel de mediações', click: () => mostrarPainel() },
         { label: 'Atualizar mediações agora', click: () => { monitor.sincronizar().catch(() => {}); mostrarPainel(); } },
         { type: 'separator' },

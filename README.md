@@ -1,4 +1,4 @@
-# Mediações ML
+# Harvey — Mediações ML
 
 App desktop (Electron) das mediações do Mercado Livre das contas Flavia Stock e Cordeiro Car.
 Mesmo molde do Dashboard ML, mas é um app separado.
