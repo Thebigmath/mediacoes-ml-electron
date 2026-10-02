@@ -35,6 +35,12 @@ perguntas.usarNotificador((titulo, corpo) => {
     n.on('click', () => { mostrarJanela(); mainWindow?.webContents.send('abrir-aba', 'perguntas'); });
     n.show();
 });
+require('./lib/contas').usarAvisoDesconectada((conta, nome) => {
+    if (!Notification.isSupported()) return;
+    const n = new Notification({ title: `Harvey: a conta ${nome} desconectou do Mercado Livre`, body: 'As mediações e perguntas desta conta pararam de atualizar. Clique para conectar de novo (Configurações).' });
+    n.on('click', () => { mostrarJanela(); mainWindow?.webContents.send('abrir-aba', 'config'); });
+    n.show();
+});
 monitor.usarNotificador((titulo, corpo) => {
     if (!Notification.isSupported()) return;
     const n = new Notification({ title: titulo, body: corpo });
@@ -63,10 +69,10 @@ function mostrarPainel() {
     painel.webContents.send('recarregar');
     painel.showInactive();   // aparece sem roubar o foco do que a pessoa esta fazendo
 }
-monitor.usarAoTerminar(({ novas }) => {
+monitor.usarAoTerminar(({ novas, respostas }) => {
     const esperando = require('./lib/banco').listar().filter(m => ['pendente', 'auditando'].includes(m.status)).length;
     if (painel && !painel.isDestroyed()) painel.webContents.send('recarregar');
-    if ((primeiraBusca && esperando) || novas) mostrarPainel();
+    if ((primeiraBusca && esperando) || novas || respostas) mostrarPainel();
     primeiraBusca = false;
 });
 ipcMain.on('abrir-mediacao', (_, id) => {

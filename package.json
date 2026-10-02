@@ -1,6 +1,6 @@
 {
   "name": "mediacoes-ml",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Harvey - Mediações do Mercado Livre com IA (Flavia Stock e Cordeiro Car)",
   "main": "main.js",
   "author": "Thebigmath",
@@ -21,11 +21,37 @@
   "build": {
     "appId": "com.thebigmath.mediacoes-ml",
     "productName": "Mediacoes ML",
-    "directories": { "output": "dist" },
-    "publish": { "provider": "github", "owner": "Thebigmath", "repo": "mediacoes-ml-electron", "releaseType": "release" },
-    "win": { "target": "nsis", "icon": "public/assets/icon.ico" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Harvey" },
-    "files": ["main.js", "preload.js", "server.js", "routes/**", "lib/**", "public/**", "package.json", "node_modules/**"],
+    "directories": {
+      "output": "dist"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Thebigmath",
+      "repo": "mediacoes-ml-electron",
+      "releaseType": "release"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Harvey"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "server.js",
+      "routes/**",
+      "lib/**",
+      "conhecimento/**",
+      "public/**",
+      "package.json",
+      "node_modules/**"
+    ],
     "asar": true
   }
 }

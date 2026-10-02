@@ -204,8 +204,8 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
   <section class="vista" id="v-config">
     <div class="card" style="max-width:640px">
       <div class="r">Contas do Mercado Livre</div>
-      <div id="cfgContas" class="sub" style="margin:8px 0 16px">—</div>
-      <div class="sub">O app usa o token do app Dashboard de cada conta. Não é preciso gerar outro token aqui.</div>
+      <div id="cfgContas" style="margin:8px 0 16px">—</div>
+      <div class="sub">Cada conta usa um <b>app próprio do Mercado Livre</b> (App ID + Secret Key, criados em developers.mercadolivre.com.br) ou, se não houver, o token do app Dashboard instalado neste computador.</div>
       <hr style="border-color:var(--sep);margin:16px 0">
       <div class="r">Chave do Gemini (análise e resposta)</div>
       <div id="cfgGemini" class="sub" style="margin:6px 0 8px">—</div>
@@ -333,6 +333,7 @@ async function abrir(id, semReler) {
         <button class="btn" onclick="$('resp').value='Sim.';$('resp').focus()">Sim</button>
         <button class="btn" onclick="$('resp').value='Não.';$('resp').focus()">Não</button></div>` : ''}
       ${m.status === 'enviada' && !esperandoNos ? `<div class="sub" style="margin-bottom:6px">Última resposta enviada em ${quando(m.enviada_em)}. Aguardando o ${m.destinatario === 'mediator' ? 'mediador' : 'comprador'} — a caixa continua aberta se quiser complementar.</div>` : ''}
+      ${m.status === 'auditando' && m.msg_nova_em && (!m.rascunho_em || new Date(m.msg_nova_em) > new Date(m.rascunho_em)) ? `<div class="caixa" style="border:1px solid #ff9f0a;color:#ffb340;margin-bottom:8px"><i class="bi bi-exclamation-triangle"></i> <b>Chegou mensagem nova ${m.msg_nova_de === 'mediator' ? 'do mediador' : 'do comprador'}</b> em ${quando(m.msg_nova_em)}, depois que você editou este rascunho. Leia a conversa acima e revise antes de enviar.</div>` : ''}
       <textarea class="resp" id="resp" ${podeResponder ? '' : 'readonly'} placeholder="Escreva a resposta…">${esc(m.mensagem_sugerida || '')}</textarea>
       <div class="acoes">
         <button class="btn" onclick="analisar()" ${podeResponder ? '' : 'disabled'}><i class="bi bi-stars"></i> ${m.mensagem_sugerida ? 'Refazer análise' : 'Gerar resposta com a IA'}</button>
@@ -593,12 +594,46 @@ termEscrever([{ nivel: 'info', texto: 'Terminal da Área do desenvolvedor. Digit
 // ---- configuracoes ----
 async function carregarConfig() {
   const [c, cs, v] = await Promise.all([api('/config'), api('/contas'), api('/versao')]);
-  $('cfgContas').innerHTML = cs.map(x => `${x.conectado ? '<span style="color:var(--verde)">●</span>' : '<span style="color:var(--vermelho)">●</span>'} ${esc(x.nome)} ${x.conectado ? '— conectada' + (x.apelido ? ' (' + esc(x.apelido) + ')' : '') : '— ' + esc(x.erro)}`).join('<br>');
+  $('cfgContas').innerHTML = cs.map(x => {
+    const bola = `<span style="color:var(${x.conectado ? '--verde' : '--vermelho'})">●</span>`;
+    const como = x.modo === 'proprio' ? `app próprio (App ID ${esc(x.app.client_id)})` : x.conectado ? 'token do Dashboard deste PC' : 'nenhum — configure o app próprio abaixo';
+    return `<div class="caixa" style="margin-bottom:10px">
+      <div>${bola} <b>${esc(x.nome)}</b> — ${x.conectado ? 'conectada' + (x.apelido ? ' como <b>' + esc(x.apelido) + '</b>' : '') : esc(x.erro)}</div>
+      <div class="sub" style="margin:4px 0 8px">Acesso: ${como}</div>
+      <details ${!x.conectado ? 'open' : ''}><summary class="sub" style="cursor:pointer">${x.modo === 'proprio' ? 'Reconectar / trocar app' : 'Configurar app próprio do Mercado Livre'}</summary>
+        <div class="sub" style="margin:8px 0 4px">1. App ID e Secret Key do app criado para esta conta:</div>
+        <div class="linha"><input id="ap_id_${x.conta}" placeholder="App ID (client_id)" value="${esc((x.app && x.app.client_id) || '')}" style="flex:1"><input id="ap_sec_${x.conta}" type="password" placeholder="Secret Key (client_secret)" style="flex:1"></div>
+        <div class="linha" style="margin-top:6px"><input id="ap_red_${x.conta}" placeholder="Redirect URI cadastrada no app" value="${esc((x.app && x.app.redirect_uri) || 'https://claude.ai/new')}" style="flex:1"><button class="btn" onclick="cfgApp('${x.conta}')">Salvar app</button></div>
+        <div class="sub" style="margin:10px 0 4px">2. Autorize logada na conta <b>${esc(x.nome)}</b> e cole o endereço da página que abrir (ou só o code):</div>
+        <div class="linha"><button class="btn" onclick="cfgAutorizar('${x.conta}')" ${x.app ? '' : 'disabled'}><i class="bi bi-box-arrow-up-right"></i> Autorizar no Mercado Livre</button>
+          <input id="ap_code_${x.conta}" placeholder="Cole aqui o endereço com ?code=…" style="flex:1"><button class="btn pri" onclick="cfgConectar('${x.conta}')" ${x.app ? '' : 'disabled'}>Conectar</button></div>
+        ${x.modo === 'proprio' ? `<div style="margin-top:8px"><button class="btn" onclick="cfgDesconectar('${x.conta}')">Remover app próprio</button></div>` : ''}
+        <div class="sub" id="ap_msg_${x.conta}" style="margin-top:6px"></div>
+      </details></div>`;
+  }).join('');
   $('cfgGemini').textContent = c.gemini_configurado ? `Chave configurada (termina em ${c.gemini_final}).` : 'Sem chave salva no app: usando a da Área de Trabalho (tokenfgemini.txt), se existir.';
   $('cfgOllama').value = c.ollama_modelo; $('versao').textContent = 'Harvey v' + v.versao;
 }
 $('cfgSalvar').onclick = async () => { if (!$('cfgChave').value.trim()) return; await api('/config', { body: { gemini_api_key: $('cfgChave').value } }); $('cfgChave').value = ''; carregarConfig(); };
-$('cfgSalvarOllama').onclick = async () => { await api('/config', { body: { ollama_modelo: $('cfgOllama').value } }); carregarConfig(); };
+async function cfgApp(c) {
+  const body = { client_id: $('ap_id_' + c).value, client_secret: $('ap_sec_' + c).value, redirect_uri: $('ap_red_' + c).value };
+  try { await api('/contas/' + c + '/app', { body }); carregarConfig(); }
+  catch (e) { $('ap_msg_' + c).textContent = e.message; }
+}
+async function cfgAutorizar(c) {
+  try { const r = await api('/contas/' + c + '/autorizar'); window.electronAPI ? window.electronAPI.openExternal(r.url) : window.open(r.url, '_blank'); $('ap_msg_' + c).textContent = 'Depois de autorizar, copie o endereço da página que abriu e cole no campo ao lado.'; }
+  catch (e) { $('ap_msg_' + c).textContent = e.message; }
+}
+async function cfgConectar(c) {
+  $('ap_msg_' + c).textContent = 'Conectando…';
+  try { const r = await api('/contas/' + c + '/codigo', { body: { codigo: $('ap_code_' + c).value } }); $('ap_msg_' + c).textContent = ''; alert('Conta conectada como ' + r.apelido + ' (vendedor ' + r.seller_id + '). Confira se é a conta certa.'); carregarConfig(); }
+  catch (e) { $('ap_msg_' + c).textContent = e.message; }
+}
+async function cfgDesconectar(c) {
+  if (!confirm('Remover o app próprio desta conta? O Harvey volta a usar o token do Dashboard deste PC (se houver).')) return;
+  await api('/contas/' + c + '/desconectar', { body: {} }); carregarConfig();
+}
+$('cfgSalvarOllama').onclick =async () => { await api('/config', { body: { ollama_modelo: $('cfgOllama').value } }); carregarConfig(); };
 
 // ---- atualizacao do app ----
 // clique numa mediacao do painel lateral: abre a aba Mediacoes ja nela

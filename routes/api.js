@@ -18,7 +18,27 @@ const lerCfg = () => { try { return JSON.parse(fs.readFileSync(CONFIG, 'utf8'));
 router.get('/versao', (req, res) => res.json({ versao: require('../package.json').version }));
 
 router.get('/contas', async (req, res) => {
-    res.json(await Promise.all(Object.keys(contas.CONTAS).map(c => contas.status(c))));
+    res.json(await Promise.all(Object.keys(contas.CONTAS).map(async c => ({ ...(await contas.status(c)), app: contas.appInfo(c) }))));
+});
+// App proprio do ML por conta (o client_secret entra aqui e nunca mais volta para a tela)
+const contaValida = (req, res) => { if (!contas.CONTAS[req.params.conta]) { res.status(404).json({ erro: 'Conta desconhecida.' }); return false; } return true; };
+router.post('/contas/:conta/app', (req, res) => {
+    if (!contaValida(req, res)) return;
+    try { contas.configurarApp(req.params.conta, req.body || {}); res.json({ ok: true, url: contas.urlAutorizacao(req.params.conta) }); }
+    catch (e) { res.status(400).json({ erro: e.message }); }
+});
+router.get('/contas/:conta/autorizar', (req, res) => {
+    if (!contaValida(req, res)) return;
+    try { res.json({ url: contas.urlAutorizacao(req.params.conta) }); } catch (e) { res.status(400).json({ erro: e.message }); }
+});
+router.post('/contas/:conta/codigo', (req, res) => {
+    if (!contaValida(req, res)) return;
+    contas.trocarCodigo(req.params.conta, (req.body || {}).codigo).then(r => res.json({ ok: true, ...r }))
+        .catch(e => { log.aviso('token', 'CONEXAO_RECUSADA', `${contas.CONTAS[req.params.conta].nome}: ${e.message}`); res.status(400).json({ erro: e.message }); });
+});
+router.post('/contas/:conta/desconectar', (req, res) => {
+    if (!contaValida(req, res)) return;
+    contas.desconectar(req.params.conta); res.json({ ok: true });
 });
 
 router.get('/painel', (req, res) => {
@@ -50,7 +70,7 @@ router.post('/mediacao/:id/atualizar', (req, res) => monitor.atualizarUma(req.pa
 router.post('/mediacao/:id/analisar', (req, res) => monitor.analisarUma(req.params.id).then(m => res.json({ ok: true, mediacao: m })).catch(erro(res)));
 router.post('/mediacao/:id/reescrever', (req, res) => monitor.reescrever(req.params.id, (req.body || {}).tom).then(r => res.json(r)).catch(erro(res)));
 router.post('/mediacao/:id/rascunho', (req, res) => {
-    const m = banco.atualizar(req.params.id, { mensagem_sugerida: String((req.body || {}).texto || ''), status: 'auditando' });
+    const m = banco.atualizar(req.params.id, { mensagem_sugerida: String((req.body || {}).texto || ''), status: 'auditando', rascunho_em: new Date().toISOString() });
     if (!m) return res.status(404).json({ erro: 'Mediação não encontrada.' });
     banco.registrarAcao(req.params.id, 'edicao');
     res.json({ ok: true });
@@ -61,12 +81,12 @@ router.post('/mediacao/:id/enviar', (req, res) => {
     monitor.enviar(req.params.id, b.texto, b.editada).then(r => res.status(r.sucesso ? 200 : 400).json(r)).catch(erro(res));
 });
 
-router.post('/chat', (req, res) => {
+router.post('/chat', async (req, res) => {
     const b = req.body || {};
     if (!String(b.mensagem || '').trim()) return res.status(400).json({ erro: 'Mensagem vazia.' });
-    // a senha da Area do desenvolvedor nunca vai para a IA
-    const todo = [b.mensagem, ...(b.historico || []).map(h => h && h.content)].join(' ');
-    if (senha.contemSenha(todo)) { log.aviso('dev', 'IA_BLOQUEADA', 'Mensagem com dado protegido não foi enviada para a IA'); return res.status(400).json({ erro: 'Essa mensagem contém um dado protegido e não foi enviada para a IA.' }); }
+    // a senha da Area do desenvolvedor nunca vai para a IA. So a mensagem nova e conferida: o historico
+    // e feito de mensagens que ja passaram por aqui (ou respostas da IA, que nunca recebeu a senha).
+    if (await senha.contemSenha(b.mensagem)) { log.aviso('dev', 'IA_BLOQUEADA', 'Mensagem com dado protegido não foi enviada para a IA'); return res.status(400).json({ erro: 'Essa mensagem contém um dado protegido e não foi enviada para a IA.' }); }
     ia.conversar(String(b.mensagem), b.historico || []).then(r => res.json({ resposta: r })).catch(erro(res));
 });
 
