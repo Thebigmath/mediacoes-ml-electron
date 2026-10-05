@@ -152,6 +152,7 @@ app.whenReady().then(() => {
         if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true, args: ['--segundo-plano'] });
         monitor.iniciarAgendador();
         perguntas.iniciar();
+        require('./lib/metricas').iniciarAutomatico();   // metricas de reclamacoes: 1x por dia
     });
 });
 
@@ -164,7 +165,7 @@ function criarBandeja() {
         { label: 'Atualizar mediações agora', click: () => { monitor.sincronizar().catch(() => {}); mostrarPainel(); } },
         { type: 'separator' },
         { label: 'Verificar atualização do app', click: () => { verificarUpdate(); mostrarJanela(); } },
-        { label: 'Sair', click: () => { encerrando = true; monitor.pararAgendador(); perguntas.parar(); server.stop(); app.quit(); } },
+        { label: 'Sair', click: () => { encerrando = true; monitor.pararAgendador(); perguntas.parar(); require('./lib/metricas').pararAutomatico(); server.stop(); app.quit(); } },
     ]));
     tray.on('double-click', () => mostrarJanela());
 }

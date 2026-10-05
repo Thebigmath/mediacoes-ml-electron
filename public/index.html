@@ -483,7 +483,7 @@ function barras(lista, rot, val, max) {
 async function carregarMetricas() {
   const q = new URLSearchParams({ dias: $('mtDias').value }); if ($('conta').value) q.set('conta', $('conta').value);
   mt = await api('/metricas?' + q);
-  $('mtSub').textContent = mt.atualizado_em ? `${$('conta').value ? NOME[$('conta').value] : 'Flavia Stock e Cordeiro Car'} · atualizado em ${new Date(mt.atualizado_em).toLocaleString('pt-BR')}` : 'Ainda não atualizado: clique em "Atualizar métricas".';
+  $('mtSub').textContent = mt.atualizado_em ? `${$('conta').value ? NOME[$('conta').value] : 'Flavia Stock e Cordeiro Car'} · atualizado em ${new Date(mt.atualizado_em).toLocaleString('pt-BR')} · atualiza sozinho 1x por dia` : 'Ainda não atualizado: o Harvey busca sozinho em até 2 minutos (ou clique em "Atualizar métricas").';
   const pct = (n) => mt.total ? Math.round(n / mt.total * 100) + '%' : '—';
   const card = (r, n, cor, sub) => `<div class="card"><div class="r">${r}</div><div class="n" style="color:${cor || 'var(--l1)'};font-size:24px">${n}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
   $('mtCards').innerHTML = card('Reclamações encerradas', mt.total, '', `${mt.dias} dias`)
