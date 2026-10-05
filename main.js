@@ -34,6 +34,7 @@ perguntas.usarNotificador((titulo, corpo) => {
     const n = new Notification({ title: titulo, body: corpo });
     n.on('click', () => { mostrarJanela(); mainWindow?.webContents.send('abrir-aba', 'perguntas'); });
     n.show();
+    try { mostrarPainel(); } catch {}   // pergunta nova tambem abre o painel lateral
 });
 require('./lib/contas').usarAvisoDesconectada((conta, nome) => {
     if (!Notification.isSupported()) return;
@@ -80,6 +81,7 @@ ipcMain.on('abrir-mediacao', (_, id) => {
     if (id) mainWindow?.webContents.send('abrir-mediacao', String(id));
 });
 ipcMain.on('fechar-painel', () => painel?.hide());
+ipcMain.on('abrir-aba-pedida', (_, aba) => { mostrarJanela(); if (aba) mainWindow?.webContents.send('abrir-aba', String(aba)); });
 
 // ---- atualizacao automatica ----
 // Saida do console fechada (app aberto por um terminal que depois fechou) gerava "write EPIPE" e uma

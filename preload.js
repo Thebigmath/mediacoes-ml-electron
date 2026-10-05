@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     installUpdate: () => ipcRenderer.send('install-update'),
     openExternal: (url) => ipcRenderer.send('open-external', url),
     abrirMediacao: (id) => ipcRenderer.send('abrir-mediacao', id),
+    abrirAba: (aba) => ipcRenderer.send('abrir-aba-pedida', aba),
     fecharPainel: () => ipcRenderer.send('fechar-painel'),
     onRecarregar: (cb) => ipcRenderer.on('recarregar', () => cb()),
     onAbrirMediacao: (cb) => ipcRenderer.on('abrir-mediacao', (_, id) => cb(id)),

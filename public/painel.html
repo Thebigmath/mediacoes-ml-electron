@@ -26,6 +26,9 @@ html, body { margin:0; height:100%; background:var(--bg); color:var(--l1); font:
 .rodape { position:absolute; bottom:0; left:0; right:0; padding:8px 12px; border-top:1px solid var(--sep); font-size:11px; color:var(--l3); display:flex; justify-content:space-between; align-items:center; background:var(--bg); }
 .rodape a { color:#b4b3ff; cursor:pointer; text-decoration:none; font-weight:600; }
 .vazio { color:var(--l3); text-align:center; padding:30px 10px; }
+.sec { font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--l3); margin:6px 2px 0; display:flex; gap:6px; align-items:center; }
+.it.perg { border-left-color:var(--ac); }
+.vazio.min { padding:8px 10px; font-size:12px; }
 </style>
 </head>
 <body>
@@ -44,17 +47,27 @@ const quando = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', 
 const tema = (t) => String(t || '').replace(/\s*\([A-Z]{2,4}\d+\)\s*$/, '');
 async function carregar() {
   try {
-    const p = await (await fetch('/api/painel')).json();
+    const [p, pg] = await Promise.all([fetch('/api/painel').then(r => r.json()), fetch('/api/perguntas').then(r => r.json()).catch(() => ({ abertas: [] }))]);
+    const Q = (pg.abertas || []);
     const L = p.itens.filter(m => ['pendente', 'auditando'].includes(m.status));
     const aguardando = p.itens.filter(m => m.status === 'aguardando').length;
-    $('n').textContent = L.length;
-    $('lista').innerHTML = L.length ? L.map(m => `<div class="it ${esc(m.prioridade)}" data-id="${esc(m.mediacao_id)}">
+    $('n').textContent = L.length + Q.length;
+    const htmlMed = L.length ? L.map(m => `<div class="it ${esc(m.prioridade)}" data-id="${esc(m.mediacao_id)}">
         <div class="t">${esc(tema(m.tema))}</div>
         <div class="r">${esc(m.resumo || m.pergunta_original)}</div>
         <div class="m"><span>${NOME[m.conta] || esc(m.conta)}</span>${m.prazo_resposta ? `<span>⏱ ${quando(m.prazo_resposta)}</span>` : ''}
           ${m.tem_resposta ? '<span class="ok">● resposta pronta</span>' : '<span class="falta">● sem resposta</span>'}${m.status === 'auditando' ? '<span>em revisão</span>' : ''}</div></div>`).join('')
-      : `<div class="vazio">Nenhuma mediação esperando resposta.${aguardando ? `<br>${aguardando} aguardando o Mercado Livre.` : ''}</div>`;
-    document.querySelectorAll('.it').forEach(el => el.onclick = () => window.electronAPI && window.electronAPI.abrirMediacao(el.dataset.id));
+      : `<div class="vazio min">Nenhuma mediação esperando resposta.${aguardando ? ` ${aguardando} aguardando o Mercado Livre.` : ''}</div>`;
+    // perguntas de pre-venda esperando revisao (a IA ja preparou a resposta)
+    const htmlPerg = Q.length ? Q.map(q => `<div class="it perg" data-perg="${esc(q.id)}">
+        <div class="t">${esc(q.produto_titulo || 'Pergunta')}</div>
+        <div class="r">“${esc(q.texto)}”</div>
+        <div class="m"><span>${NOME[q.conta] || esc(q.conta)}</span><span>${quando(q.criado)}</span>
+          ${q.status === 'analisando' ? '<span class="falta">● IA preparando</span>' : (q.ia && q.ia.resposta ? '<span class="ok">● resposta pronta</span>' : '<span class="falta">● sem resposta</span>')}</div></div>`).join('')
+      : '<div class="vazio min">Nenhuma pergunta esperando resposta.</div>';
+    $('lista').innerHTML = `<div class="sec"><i class="bi bi-shield-check"></i> Mediações · ${L.length}</div>${htmlMed}<div class="sec" style="margin-top:10px"><i class="bi bi-chat-dots"></i> Perguntas · ${Q.length}</div>${htmlPerg}`;
+    document.querySelectorAll('.it[data-id]').forEach(el => el.onclick = () => window.electronAPI && window.electronAPI.abrirMediacao(el.dataset.id));
+    document.querySelectorAll('.it[data-perg]').forEach(el => el.onclick = () => window.electronAPI && window.electronAPI.abrirAba && window.electronAPI.abrirAba('perguntas'));
     const e = p.estado;
     const ult = Object.values(e.ultimo || {}).map(x => x.quando).sort().pop();
     $('estado').textContent = e.rodando ? (e.etapa || 'atualizando…') : (ult ? 'atualizado às ' + new Date(ult).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'buscando no ML…') + (aguardando && L.length ? ` · ${aguardando} aguardando` : '');
