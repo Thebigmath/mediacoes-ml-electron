@@ -81,6 +81,12 @@ ipcMain.on('abrir-mediacao', (_, id) => {
     if (id) mainWindow?.webContents.send('abrir-mediacao', String(id));
 });
 ipcMain.on('fechar-painel', () => painel?.hide());
+// abre no navegador padrao so os dashboards que o proprio Harvey gerou (Downloads/Harvey_*.html)
+ipcMain.on('abrir-relatorio', (_, arquivo) => {
+    const p = path.resolve(String(arquivo || ''));
+    const pasta = path.join(app.getPath('home'), 'Downloads');
+    if (path.dirname(p) === pasta && /^Harvey_[\w.-]+\.html$/.test(path.basename(p)) && fs.existsSync(p)) shell.openPath(p);
+});
 ipcMain.on('abrir-aba-pedida', (_, aba) => { mostrarJanela(); if (aba) mainWindow?.webContents.send('abrir-aba', String(aba)); });
 
 // ---- atualizacao automatica ----

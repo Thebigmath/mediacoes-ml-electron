@@ -180,13 +180,14 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
         <select id="mtDias"><option value="30">Últimos 30 dias</option><option value="60">Últimos 60 dias</option><option value="90" selected>Últimos 90 dias</option></select>
         <button class="btn" id="mtAtualizar"><i class="bi bi-arrow-repeat"></i> Atualizar métricas</button>
         <button class="btn pri" id="mtIA"><i class="bi bi-stars"></i> Analisar com a IA</button>
+        <button class="btn" id="mtHtml" title="Gera um dashboard em HTML (um arquivo, abre sem internet) com os números e a análise da IA"><i class="bi bi-file-earmark-bar-graph"></i> Gerar dashboard HTML</button>
       </div>
     </div>
     <div class="cards" id="mtCards"></div>
     <div class="card" id="mtIACard" style="display:none;margin-bottom:14px"></div>
     <div class="mtgrade">
       <div class="card"><div class="r">Principais motivos</div><div class="sub">quantidade · comprador ganhou · reembolsado</div><div id="mtMotivos" class="barras"></div></div>
-      <div class="card"><div class="r">Produtos com mais reclamações</div><div class="sub">quantidade · reembolsado</div><div id="mtProdutos" class="barras"></div></div>
+      <div class="card"><div class="r">Produtos em que o comprador ganhou</div><div class="sub">reclamações perdidas · reembolsado</div><div id="mtProdutos" class="barras"></div></div>
       <div class="card"><div class="r">Por tipo</div><div id="mtTipos" class="barras"></div></div>
       <div class="card"><div class="r">Como foram resolvidas</div><div id="mtResol" class="barras"></div></div>
     </div>
@@ -525,6 +526,17 @@ $('mtIA').onclick = async () => {
   try { const a = await api('/metricas/ia', { body: { dias: Number($('mtDias').value), conta: $('conta').value || undefined } }); desenharIA(a); }
   catch (e) { $('mtIACard').style.display = ''; $('mtIACard').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; }
   b.disabled = false; b.innerHTML = '<i class="bi bi-stars"></i> Analisar com a IA';
+};
+
+$('mtHtml').onclick = async () => {
+  const b = $('mtHtml'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> Gerando…';
+  try {
+    const r = await api('/metricas/relatorio', { body: { dias: Number($('mtDias').value), conta: $('conta').value || undefined, comIA: true } });
+    $('mtSub').innerHTML = `Dashboard salvo em <b>${esc(r.arquivo)}</b>${r.com_ia ? ' (com a análise da IA)' : ''}`;
+    if (window.electronAPI && window.electronAPI.abrirRelatorio) window.electronAPI.abrirRelatorio(r.arquivo);
+    carregarMetricas();
+  } catch (e) { $('mtSub').textContent = 'Erro: ' + e.message; }
+  b.disabled = false; b.innerHTML = '<i class="bi bi-file-earmark-bar-graph"></i> Gerar dashboard HTML';
 };
 
 // ---- area do desenvolvedor: senha ----

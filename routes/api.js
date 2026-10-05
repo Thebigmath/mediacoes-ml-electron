@@ -163,7 +163,10 @@ router.get('/dev/comandos', (req, res) => res.json(Object.entries(dev.COMANDOS).
 
 // Metricas de reclamacoes encerradas + analise da IA
 const metricas = require('../lib/metricas');
-let iaMetricas = {};   // ultima analise por periodo/conta (na memoria)
+// ultima analise da IA por periodo/conta, salva em metricas_ia.json (antes ficava so na memoria e sumia ao fechar)
+const ARQ_IA_MET = path.join(STORAGE, 'metricas_ia.json');
+let iaMetricas = (() => { try { return JSON.parse(fs.readFileSync(ARQ_IA_MET, 'utf8')); } catch { return {}; } })();
+const salvarIaMet = () => { try { fs.writeFileSync(ARQ_IA_MET, JSON.stringify(iaMetricas, null, 1), 'utf8'); } catch {} };
 router.get('/metricas', (req, res) => {
     const dias = Number(req.query.dias) || 90; const conta = req.query.conta || undefined;
     res.json({ ...metricas.resumo({ dias, conta }), ia: iaMetricas[`${dias}|${conta || ''}`] || null });
@@ -176,8 +179,28 @@ router.post('/metricas/ia', (req, res) => {
     const dias = Number((req.body || {}).dias) || 90; const conta = (req.body || {}).conta || undefined;
     const r = metricas.resumo({ dias, conta });
     if (!r.total) return res.status(400).json({ erro: 'Sem reclamações no período. Clique em Atualizar métricas primeiro.' });
-    ia.analisarMetricas(r).then(a => { iaMetricas[`${dias}|${conta || ''}`] = a; log.info('ia', 'IA_METRICAS', `Análise das métricas (${dias} dias)`, { modelo: a.modelo }); res.json(a); })
+    ia.analisarMetricas(r).then(a => { iaMetricas[`${dias}|${conta || ''}`] = a; salvarIaMet(); log.info('ia', 'IA_METRICAS', `Análise das métricas (${dias} dias)`, { modelo: a.modelo }); res.json(a); })
         .catch(e => { log.erro('ia', 'IA_ERRO', `Métricas: ${e.message}`); res.status(500).json({ erro: e.message }); });
+});
+
+// Dashboard HTML das metricas (com a analise da IA, se houver; com "comIA" gera a analise se faltar).
+// Salva em Downloads e devolve o caminho para a tela abrir.
+router.post('/metricas/relatorio', async (req, res) => {
+    try {
+        const b = req.body || {}; const dias = Number(b.dias) || 90; const conta = b.conta || undefined;
+        const r = metricas.resumo({ dias, conta });
+        if (!r.total) return res.status(400).json({ erro: 'Sem reclamações no período. Clique em Atualizar métricas primeiro.' });
+        const chave = `${dias}|${conta || ''}`;
+        if (b.comIA && !iaMetricas[chave]) { iaMetricas[chave] = await ia.analisarMetricas(r); salvarIaMet(); }
+        const html = require('../lib/relatorio').gerar(r, iaMetricas[chave] || null, { versao: require('../package.json').version });
+        const pasta = path.join(require('os').homedir(), 'Downloads');
+        fs.mkdirSync(pasta, { recursive: true });
+        const d = new Date(), z = (n) => String(n).padStart(2, '0');
+        const arquivo = path.join(pasta, `Harvey_reclamacoes_${dias}d${conta ? '_' + conta : ''}_${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}.html`);
+        fs.writeFileSync(arquivo, html, 'utf8');
+        log.info('metricas', 'RELATORIO_HTML', `Dashboard gerado: ${path.basename(arquivo)}`, { com_ia: !!iaMetricas[chave] });
+        res.json({ ok: true, arquivo, com_ia: !!iaMetricas[chave] });
+    } catch (e) { log.erro('metricas', 'RELATORIO_ERRO', e.message); res.status(500).json({ erro: e.message }); }
 });
 
 // Perguntas de pre-venda
