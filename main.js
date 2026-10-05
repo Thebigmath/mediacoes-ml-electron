@@ -82,6 +82,20 @@ ipcMain.on('abrir-mediacao', (_, id) => {
 ipcMain.on('fechar-painel', () => painel?.hide());
 
 // ---- atualizacao automatica ----
+// Saida do console fechada (app aberto por um terminal que depois fechou) gerava "write EPIPE" e uma
+// janela de erro na verificacao de atualizacao. O log da atualizacao vai para o log do Harvey, nao
+// para o console, e erro de escrita no console e ignorado.
+for (const s of [process.stdout, process.stderr]) { try { s && s.on('error', () => {}); } catch {} }
+process.on('uncaughtException', (e) => {
+    if (e && e.code === 'EPIPE') return;
+    try { require('./lib/log').erro('app', 'ERRO_INESPERADO', e && e.message || String(e)); } catch {}
+    try { require('electron').dialog.showErrorBox('Harvey: erro inesperado', (e && e.stack) || String(e)); } catch {}   // outros erros continuam aparecendo
+});
+autoUpdater.logger = {
+    info: () => {}, debug: () => {},
+    warn: (m) => { try { require('./lib/log').aviso('update', 'UPDATE_AVISO', String(m).slice(0, 300)); } catch {} },
+    error: (m) => { try { require('./lib/log').erro('update', 'UPDATE_ERRO', String(m).slice(0, 300)); } catch {} },
+};
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
 let updateReady = false;

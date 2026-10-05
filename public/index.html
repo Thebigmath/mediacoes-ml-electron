@@ -202,6 +202,10 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
   </section>
 
   <section class="vista" id="v-config">
+    <div class="card" style="max-width:640px;margin-bottom:14px">
+      <div class="linha" style="justify-content:space-between;margin:0"><div class="r">Saúde do Harvey</div><button class="btn" onclick="carregarSaude(true)"><i class="bi bi-arrow-repeat"></i> Conferir</button></div>
+      <div id="saude" class="sub" style="margin-top:8px">—</div>
+    </div>
     <div class="card" style="max-width:640px">
       <div class="r">Contas do Mercado Livre</div>
       <div id="cfgContas" style="margin:8px 0 16px">—</div>
@@ -593,7 +597,21 @@ $('termIn').onkeydown = async (ev) => {
 termEscrever([{ nivel: 'info', texto: 'Terminal da Área do desenvolvedor. Digite "ajuda" para ver os comandos, "mt" para os parâmetros da linguagem MT, "status" para testar tudo, "limpar" para limpar a tela.' }]);
 
 // ---- configuracoes ----
+async function carregarSaude() {
+  const el = $('saude'); el.textContent = 'Conferindo…';
+  try {
+    const s = await api('/saude');
+    const item = (rot, x) => `<div style="margin:5px 0"><span style="color:var(${x.ok === true ? '--verde' : x.ok === null ? '--l3' : '--vermelho'})">${x.ok === true ? '●' : x.ok === null ? '○' : '●'}</span> <b>${rot}</b> — ${esc(x.texto)}</div>`;
+    const tudoOk = s.contas.every(c => c.ok) && s.gemini.ok && s.mediacoes.ok !== false && s.perguntas.ok !== false;
+    el.innerHTML = `<div style="margin-bottom:8px;font-weight:700;color:var(${tudoOk ? '--verde' : '--laranja,#ff9f0a'})">${tudoOk ? 'Tudo pronto para trabalhar.' : 'Tem item para resolver (em vermelho).'}</div>`
+      + s.contas.map(c => item(c.nome, c)).join('') + item('Gemini (IA principal)', s.gemini) + item('Ollama (IA reserva)', s.ollama)
+      + item('Mediações', s.mediacoes) + item('Perguntas', s.perguntas)
+      + `<div style="margin-top:8px">Uso da IA hoje: <b>${s.uso_hoje.gemini}</b> chamada(s) ao Gemini${s.uso_hoje.ollama ? `, ${s.uso_hoje.ollama} ao Ollama` : ''}${s.uso_hoje.erros ? `, <span style="color:var(--vermelho)">${s.uso_hoje.erros} falha(s)</span>` : ''} · Harvey v${esc(s.versao)}</div>`
+      + (s.erro_recente ? `<div style="margin-top:4px">Último erro: ${new Date(s.erro_recente.quando).toLocaleString('pt-BR')} ${esc(s.erro_recente.texto)}</div>` : '');
+  } catch (e) { el.textContent = 'Não consegui conferir: ' + e.message; }
+}
 async function carregarConfig() {
+  carregarSaude();
   const [c, cs, v] = await Promise.all([api('/config'), api('/contas'), api('/versao')]);
   $('cfgContas').innerHTML = cs.map(x => {
     const bola = `<span style="color:var(${x.conectado ? '--verde' : '--vermelho'})">●</span>`;

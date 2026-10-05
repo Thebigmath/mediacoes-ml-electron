@@ -17,6 +17,48 @@ const lerCfg = () => { try { return JSON.parse(fs.readFileSync(CONFIG, 'utf8'));
 
 router.get('/versao', (req, res) => res.json({ versao: require('../package.json').version }));
 
+// Saude do Harvey: uma tela que diz se esta tudo pronto para trabalhar (contas, IA, buscas, uso).
+// So leitura. A chave do Gemini e conferida listando os modelos (nao gasta cota), com cache de 10 min.
+let cacheGemini = { t: 0, r: null };
+async function saudeGemini() {
+    if (Date.now() - cacheGemini.t < 10 * 60 * 1000 && cacheGemini.r) return cacheGemini.r;
+    let k = null, r;
+    try { k = ia.chave(); } catch {}
+    const origem = lerCfg().gemini_api_key ? 'Configurações' : 'arquivo da Área de Trabalho';
+    if (!k) r = { ok: false, texto: 'sem chave do Gemini: cole a chave abaixo' };
+    else {
+        try {
+            await require('axios').get('https://generativelanguage.googleapis.com/v1beta/models', { headers: { 'x-goog-api-key': k }, params: { pageSize: 1 }, timeout: 15000 });
+            r = { ok: true, texto: `chave aceita (termina em ${k.slice(-4)}, de ${origem})` };
+        } catch (e) { r = { ok: false, texto: `o Google recusou a chave (${e.response?.status || e.message})` }; }
+    }
+    cacheGemini = { t: Date.now(), r };
+    return r;
+}
+router.get('/saude', async (req, res) => {
+    const perguntas = require('../lib/perguntas');
+    const [cs, gemini, ollama] = await Promise.all([
+        Promise.all(Object.keys(contas.CONTAS).map(c => contas.status(c))),
+        saudeGemini(),
+        require('axios').get('http://127.0.0.1:11434/api/tags', { timeout: 3000 }).then(r => ({ ok: true, texto: `ligado (${(r.data.models || []).map(m => m.name).join(', ') || 'sem modelo'})` }))
+            .catch(() => ({ ok: null, texto: 'não instalado (opcional: só reserva do Gemini)' })),
+    ]);
+    const ult = monitor.estado.ultimo || {};
+    const ultimaBusca = Object.values(ult).map(u => u.quando).sort().pop() || null;
+    const hoje = (ia.usoIA(1)[0] || {});
+    const erroRecente = log.listar({ nivel: 'erro', limite: 1 })[0] || null;
+    res.json({
+        versao: require('../package.json').version,
+        contas: cs.map(c => ({ nome: c.nome, ok: c.conectado, texto: c.conectado ? `conectada como ${c.apelido || c.seller_id} (${c.modo === 'proprio' ? 'app próprio' : 'token do Dashboard'})` : c.erro })),
+        gemini, ollama,
+        mediacoes: { ok: ultimaBusca ? !monitor.estado.erros.length : null, texto: ultimaBusca ? `última busca ${new Date(ultimaBusca).toLocaleString('pt-BR')}${monitor.estado.erros.length ? ' · com erro: ' + monitor.estado.erros[0] : ''}` : 'aguardando a 1ª busca (começa 20 s depois de abrir o app)' },
+        perguntas: { ok: perguntas.estado.verificado_em ? !perguntas.estado.erros.length : null, texto: perguntas.estado.verificado_em ? `última verificação ${new Date(perguntas.estado.verificado_em).toLocaleString('pt-BR')} · resposta automática ${perguntas.automatico() ? 'LIGADA' : 'desligada'}` : 'aguardando a 1ª verificação (a cada 2 min)' },
+        uso_hoje: { gemini: hoje.dia ? hoje.gemini : 0, ollama: hoje.dia ? hoje.ollama : 0, erros: hoje.dia ? hoje.erros : 0 },
+        erro_recente: erroRecente ? { quando: erroRecente.quando, texto: `[${erroRecente.area}] ${erroRecente.mensagem}` } : null,
+    });
+});
+router.get('/uso', (req, res) => res.json(ia.usoIA(Number(req.query.dias) || 30)));
+
 router.get('/contas', async (req, res) => {
     res.json(await Promise.all(Object.keys(contas.CONTAS).map(async c => ({ ...(await contas.status(c)), app: contas.appInfo(c) }))));
 });
