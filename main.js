@@ -1,6 +1,6 @@
 // Harvey (app de Mediações do ML) — processo principal do Electron (mesmo molde do Dashboard, app separado).
 // Sobe o servidor local na porta 3005, abre a janela, fica na bandeja, avisa mediação nova
-// por notificação do Windows e se atualiza sozinho pelo GitHub (Thebigmath/mediacoes-ml-electron).
+// por notificação do Windows e se atualiza sozinho pelo GitHub (theman01-dotcom/mediacoes-ml-electron).
 const { app, BrowserWindow, ipcMain, shell, Notification, Tray, Menu, nativeImage, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');

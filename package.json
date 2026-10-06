@@ -1,6 +1,6 @@
 {
   "name": "mediacoes-ml",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Harvey - Mediações do Mercado Livre com IA (Flavia Stock e Cordeiro Car)",
   "main": "main.js",
   "author": "Thebigmath",
@@ -26,7 +26,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "Thebigmath",
+      "owner": "theman01-dotcom",
       "repo": "mediacoes-ml-electron",
       "releaseType": "release"
     },
