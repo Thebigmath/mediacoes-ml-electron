@@ -95,6 +95,13 @@ router.get('/painel', (req, res) => {
     res.json({ resumo: banco.resumo(conta), itens, estado: monitor.estado });
 });
 
+router.get('/mediacao/:id/anexo/:arquivo', async (req, res) => {
+    const m = banco.obter(req.params.id); if (!m) return res.status(404).end();
+    const ok = (m.historico_ml || []).some(x => (x.anexos || []).some(a => a.arquivo === req.params.arquivo));   // so anexos desta mediacao
+    if (!ok) return res.status(404).end();
+    try { const a = await require('../lib/ml').baixarAnexo(m.conta, m.mediacao_id, req.params.arquivo); res.set('Content-Type', a.tipo).set('Cache-Control', 'private, max-age=3600').send(a.dados); }
+    catch (e) { res.status(502).end(); }
+});
 router.get('/mediacao/:id', (req, res) => {
     const m = banco.obter(req.params.id);
     if (!m) return res.status(404).json({ erro: 'Mediação não encontrada.' });

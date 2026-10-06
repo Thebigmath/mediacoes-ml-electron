@@ -343,7 +343,9 @@ async function abrir(id, semReler) {
   if (!semReler) { try { await api('/mediacao/' + id + '/atualizar', { body: {} }); } catch {} }
   const d = await api('/mediacao/' + id); atual = d.mediacao;
   const m = atual, a = m.analise || {};
-  const conversa = (m.historico_ml || []).map(x => `<div class="msg ${esc(x.remetente)}"><div class="de">${QUEM[x.remetente] || esc(x.remetente)}${x.destinatario ? ' → ' + (QUEM[x.destinatario] || esc(x.destinatario)) : ''}</div>${esc(x.texto)}<div class="q">${quando(x.quando)}${x.moderacao && x.moderacao !== 'clean' ? ' · moderada pelo ML' : ''}</div></div>`).join('') || '<div class="sub">Sem mensagens.</div>';
+  const conversa = (m.historico_ml || []).map(x => `<div class="msg ${esc(x.remetente)}"><div class="de">${QUEM[x.remetente] || esc(x.remetente)}${x.destinatario ? ' → ' + (QUEM[x.destinatario] || esc(x.destinatario)) : ''}</div>${esc(x.texto)}${(x.anexos || []).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${x.anexos.map(an => /^image\//.test(an.tipo || '')
+      ? `<a href="/api/mediacao/${esc(m.mediacao_id)}/anexo/${encodeURIComponent(an.arquivo)}" target="_blank" title="${esc(an.nome || '')}"><img src="/api/mediacao/${esc(m.mediacao_id)}/anexo/${encodeURIComponent(an.arquivo)}" loading="lazy" style="width:92px;height:92px;object-fit:cover;border-radius:8px;border:1px solid var(--sep)"></a>`
+      : `<a href="/api/mediacao/${esc(m.mediacao_id)}/anexo/${encodeURIComponent(an.arquivo)}" target="_blank" class="chip">📎 ${esc(an.nome || 'anexo')}</a>`).join('')}</div>` : ''}<div class="q">${quando(x.quando)}${x.moderacao && x.moderacao !== 'clean' ? ' · moderada pelo ML' : ''}</div></div>`).join('') || '<div class="sub">Sem mensagens.</div>';
   // e uma conversa: a caixa fica aberta sempre que o ML deixa responder, mesmo depois de enviar
   const podeResponder = m.status_ml === 'opened' && !!m.acao_disponivel;
   const ultimaMsg = (m.historico_ml || [])[(m.historico_ml || []).length - 1];
@@ -362,6 +364,7 @@ async function abrir(id, semReler) {
       ${m.quem_age ? `<div class="sub">Quem precisa agir agora: <b>${{ complainant: 'o comprador', respondent: 'nós (vendedor)', mediator: 'o mediador' }[m.quem_age] || esc(m.quem_age)}</b></div>` : ''}
       ${m.devolucao ? `<div class="sub">Devolução: ${({ label_generated: 'etiqueta gerada, o comprador ainda não postou', pending: 'pendente', shipped: 'a caminho', delivered: 'entregue', closed: 'concluída', expired: 'expirada', cancelled: 'cancelada', failed: 'falhou' })[m.devolucao.status] || esc(m.devolucao.status || '—')} · o produto volta para <b>${m.devolucao.destino === 'warehouse' ? 'o Full (centro do ML)' : m.devolucao.destino === 'seller_address' ? 'vocês' : esc(m.devolucao.destino || '—')}</b></div>` : ''}</div></div>` : ''}
     ${a.resumo ? `<div class="bloco"><h4>Resumo da IA</h4><div class="caixa">${esc(a.resumo)}${a.prioridade_porque ? `<div class="sub" style="margin-top:6px">${esc(a.prioridade_porque)}</div>` : ''}</div></div>` : ''}
+    ${a.fotos ? `<div class="bloco"><h4><i class="bi bi-image"></i> O que as fotos mostram (IA)</h4><div class="caixa">${esc(a.fotos)}</div></div>` : ''}
     ${a.nossa_defesa ? `<div class="bloco"><h4>Nossa defesa</h4><div class="caixa">${esc(a.nossa_defesa)}</div></div>` : ''}
     ${(a.provas_faltantes || []).length ? `<div class="bloco"><h4>Confirmar antes de enviar</h4><div class="caixa">${a.provas_faltantes.map(p => '• ' + esc(p)).join('<br>')}</div></div>` : ''}
     <div class="bloco"><h4>Conversa no Mercado Livre</h4><div class="caixa conversa">${conversa}</div></div>
@@ -450,6 +453,7 @@ async function carregarPerguntas() {
         ${q.ia ? `<span class="chip ${CONF[q.ia.confianca]}">certeza ${esc(q.ia.confianca)}</span>` : '<span class="chip">IA analisando…</span>'}</div>
       <div class="q">“${esc(q.texto)}”</div>
       ${q.ia ? `<textarea id="pgr_${q.id}">${esc(q.ia.resposta)}</textarea>
+        ${q.ia.trecho ? `<div class="sub" style="margin-top:4px">${q.ia.confirmado_no_anuncio === false ? '<span style="color:var(--laranja)">⚠ trecho NÃO encontrado no anúncio:</span>' : '<span style="color:var(--verde)">✓ no anúncio:</span>'} “${esc(q.ia.trecho)}”</div>` : (q.ia.confirmado_no_anuncio === false ? '<div class="sub" style="margin-top:4px;color:var(--laranja)">⚠ a IA não citou trecho do anúncio: confira antes de enviar</div>' : '')}
         <div class="sub" style="margin-top:4px">${esc(q.ia.base ? 'Base: ' + q.ia.base : '')}${q.motivo ? ' · Não enviada sozinha: ' + esc(q.motivo) : ''}</div>
         <div class="acoes"><button class="btn perigo" onclick="pgEnviar('${q.id}')"><i class="bi bi-send"></i> Enviar</button>
           <button class="btn" onclick="pgGerar('${q.id}')"><i class="bi bi-stars"></i> Gerar de novo</button>
