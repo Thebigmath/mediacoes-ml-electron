@@ -450,7 +450,7 @@ async function carregarPerguntas() {
     : '<b>Automático desligado.</b> A IA prepara cada resposta com os dados do anúncio, e você revisa e envia. Ligue "Responder automaticamente" para o Harvey enviar sozinho as que ele tem certeza.';
   $('pgAbertas').innerHTML = pg.abertas.length ? pg.abertas.map(q => `<div class="pg">
       <div class="linha" style="margin:0"><span class="chip">${NOME[q.conta]}</span><span class="sub">${esc(q.produto_titulo || q.item_id)} · ${quando(q.criado)}</span>
-        ${q.ia ? `<span class="chip ${CONF[q.ia.confianca]}">certeza ${esc(q.ia.confianca)}</span>` : '<span class="chip">IA analisando…</span>'}</div>
+        ${q.ia ? `<span class="chip ${CONF[q.ia.confianca]}">certeza ${esc(q.ia.confianca)}</span>` : (q.motivo && /não conseguiu analisar/.test(q.motivo) ? `<span class="chip alta" title="${esc(q.motivo)}">IA falhou — tentando de novo</span> <button class="btn" onclick="pgGerar('${q.id}')"><i class="bi bi-stars"></i> Gerar agora</button>` : '<span class="chip">IA analisando…</span>')}</div>
       <div class="q">“${esc(q.texto)}”</div>
       ${q.ia ? `<textarea id="pgr_${q.id}">${esc(q.ia.resposta)}</textarea>
         ${q.ia.trecho ? `<div class="sub" style="margin-top:4px">${q.ia.confirmado_no_anuncio === false ? '<span style="color:var(--laranja)">⚠ trecho NÃO encontrado no anúncio:</span>' : '<span style="color:var(--verde)">✓ no anúncio:</span>'} “${esc(q.ia.trecho)}”</div>` : (q.ia.confirmado_no_anuncio === false ? '<div class="sub" style="margin-top:4px;color:var(--laranja)">⚠ a IA não citou trecho do anúncio: confira antes de enviar</div>' : '')}
