@@ -372,7 +372,7 @@ async function abrir(id, semReler) {
       ${podeResponder && esperandoNos ? `<div class="linha" style="margin:0 0 8px"><span class="sub">Resposta rápida:</span>
         <button class="btn" onclick="$('resp').value='Sim.';$('resp').focus()">Sim</button>
         <button class="btn" onclick="$('resp').value='Não.';$('resp').focus()">Não</button></div>` : ''}
-      ${m.status === 'enviada' && !esperandoNos ? `<div class="sub" style="margin-bottom:6px">Última resposta enviada em ${quando(m.enviada_em)}. Aguardando o ${m.destinatario === 'mediator' ? 'mediador' : 'comprador'} — a caixa continua aberta se quiser complementar.</div>` : ''}
+      ${m.status === 'enviada' && !esperandoNos ? `<div class="sub" style="margin-bottom:6px">Última resposta enviada em ${quando(m.enviada_em)}${m.respondida_fora ? ' (pelo site/app do Mercado Livre, fora do Harvey)' : ''}. Aguardando o ${m.destinatario === 'mediator' ? 'mediador' : 'comprador'} — a caixa continua aberta se quiser complementar.</div>` : ''}
       ${m.status === 'auditando' && m.msg_nova_em && (!m.rascunho_em || new Date(m.msg_nova_em) > new Date(m.rascunho_em)) ? `<div class="caixa" style="border:1px solid #ff9f0a;color:#ffb340;margin-bottom:8px"><i class="bi bi-exclamation-triangle"></i> <b>Chegou mensagem nova ${m.msg_nova_de === 'mediator' ? 'do mediador' : 'do comprador'}</b> em ${quando(m.msg_nova_em)}, depois que você editou este rascunho. Leia a conversa acima e revise antes de enviar.</div>` : ''}
       <textarea class="resp" id="resp" ${podeResponder ? '' : 'readonly'} placeholder="Escreva a resposta…">${esc(m.mensagem_sugerida || '')}</textarea>
       <div class="acoes">
