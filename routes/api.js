@@ -124,6 +124,20 @@ router.post('/mediacao/:id/rascunho', (req, res) => {
     banco.registrarAcao(req.params.id, 'edicao');
     res.json({ ok: true });
 });
+// Ignorar: tira da fila so neste app (nada e enviado ao ML). Volta sozinha se chegar mensagem nova.
+router.post('/mediacao/:id/ignorar', (req, res) => {
+    const m = banco.atualizar(req.params.id, { status: 'ignorada', ignorada_em: new Date().toISOString() });
+    if (!m) return res.status(404).json({ erro: 'Mediação não encontrada.' });
+    banco.registrarAcao(req.params.id, 'ignorada'); res.json({ ok: true });
+});
+router.post('/mediacao/:id/reabrir', (req, res) => {
+    const m = banco.atualizar(req.params.id, { status: (banco.obter(req.params.id) || {}).acao_disponivel ? 'pendente' : 'aguardando' });
+    if (!m) return res.status(404).json({ erro: 'Mediação não encontrada.' });
+    banco.registrarAcao(req.params.id, 'reaberta'); res.json({ ok: true });
+});
+// Aprendizado: perguntas ja respondidas pela equipe no ML, usadas como exemplo pela IA
+router.get('/perguntas/aprendizado', (req, res) => res.json(require('../lib/aprendizado').estado()));
+router.post('/perguntas/aprendizado', (req, res) => require('../lib/aprendizado').sincronizar().then(() => res.json(require('../lib/aprendizado').estado())).catch(erro(res)));
 router.post('/mediacao/:id/enviar', (req, res) => {
     const b = req.body || {};
     if (b.confirmacao !== 'ENVIAR') return res.status(400).json({ sucesso: false, erro: 'Confirmação ausente.' });

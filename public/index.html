@@ -44,7 +44,7 @@ main { padding:18px 22px 40px; }
 .linha { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px; }
 .chip { font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,.08); color:var(--l2); }
 .chip.alta { background:rgba(255,69,58,.15); color:var(--vermelho); } .chip.media { background:rgba(255,159,10,.15); color:var(--laranja); } .chip.baixa { background:rgba(48,209,88,.15); color:var(--verde); }
-.chip.enviada { background:rgba(48,209,88,.15); color:var(--verde); } .chip.auditando { background:rgba(123,121,245,.18); color:#b4b3ff; } .chip.encerrada { color:var(--l3); }
+.chip.enviada { background:rgba(48,209,88,.15); color:var(--verde); } .chip.auditando { background:rgba(123,121,245,.18); color:#b4b3ff; } .chip.encerrada { color:var(--l3); } .chip.ignorada { background:rgba(142,142,147,.18); color:var(--l3); }
 .det { background:var(--s1); border:1px solid var(--sep); border-radius:16px; padding:18px 20px; min-height:300px; }
 .det h2 { margin:0; font-size:20px; } .sub { color:var(--l3); font-size:13px; }
 .bloco { margin-top:16px; } .bloco h4 { margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--l3); }
@@ -265,7 +265,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const NOME = { flavia: 'Flavia Stock', cordeiro: 'Cordeiro Car' };
 const QUEM = { complainant: 'Comprador', respondent: 'Você (vendedor)', mediator: 'Mediador do ML', buyer: 'Comprador', seller: 'Você (vendedor)' };
 const ACAO = { responder: 'Responder', aguardar_comprador: 'Aguardar o comprador', aceitar_reembolso_parcial: 'Aceitar reembolso parcial', aceitar_reembolso_total: 'Aceitar reembolso total' };
-const STATUS = { pendente: 'Pendente', aguardando: 'Aguardando o ML', auditando: 'Em revisão', enviada: 'Enviada', encerrada: 'Encerrada no ML' };
+const STATUS = { pendente: 'Pendente', aguardando: 'Aguardando o ML', auditando: 'Em revisão', enviada: 'Enviada', encerrada: 'Encerrada no ML', ignorada: 'Ignorada' };
 const quando = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 let devToken = '';   // sessao da Area do desenvolvedor (so na memoria: some ao fechar o app)
 async function api(url, opt) {
@@ -310,7 +310,7 @@ function urgencia(a, b) {
 }
 function desenharFiltros() {
   const c = {}; for (const m of painel.itens) c[m.status] = (c[m.status] || 0) + 1;
-  const ops = [['pendente', 'Pendentes'], ['auditando', 'Em revisão'], ['aguardando', 'Aguardando o ML'], ['enviada', 'Enviadas'], ['encerrada', 'Encerradas'], ['', 'Todas']];
+  const ops = [['pendente', 'Pendentes'], ['auditando', 'Em revisão'], ['aguardando', 'Aguardando o ML'], ['enviada', 'Enviadas'], ['ignorada', 'Ignoradas'], ['encerrada', 'Encerradas'], ['', 'Todas']];
   $('filtros').innerHTML = ops.map(([v, n]) => `<button class="${$('filtro').value === v ? 'on' : ''}" onclick="$('filtro').value='${v}';desenharLista()">${n} ${v ? (c[v] || 0) : painel.itens.length}</button>`).join('');
 }
 function desenharLista() {
@@ -381,6 +381,8 @@ async function abrir(id, semReler) {
         <button class="btn" onclick="reescrever()" ${m.mensagem_sugerida ? '' : 'disabled'}><i class="bi bi-arrow-repeat"></i> Reescrever</button>
         <button class="btn" onclick="salvar()"><i class="bi bi-save"></i> Salvar revisão</button>
         <button class="btn perigo" onclick="pedirEnvio()" ${podeResponder ? '' : 'disabled'}><i class="bi bi-send"></i> Enviar ao ML</button>
+        ${m.status === 'ignorada' ? `<button class="btn" onclick="reabrirMediacao()" title="Volta para a fila de pendentes"><i class="bi bi-arrow-counterclockwise"></i> Voltar para a fila</button>`
+          : `<button class="btn" onclick="ignorarMediacao()" title="Tira da fila só no Harvey: nada é enviado ao Mercado Livre. Volta sozinha se chegar mensagem nova."><i class="bi bi-eye-slash"></i> Ignorar</button>`}
         <span class="sub" id="acaoMsg"></span>
       </div>
       ${!podeResponder && m.status !== 'enviada' ? '<div class="aviso" style="margin-top:6px">O Mercado Livre não está aceitando resposta nesta mediação agora (prazo vencido ou já decidida).</div>' : ''}
@@ -397,6 +399,15 @@ async function analisar() {
 async function reescrever() {
   msgAcao('Reescrevendo…');
   try { const r = await api('/mediacao/' + sel + '/reescrever', { body: { tom: $('tom').value } }); $('resp').value = r.resposta; msgAcao('Nova versão pronta. Revise e salve.'); }
+  catch (e) { msgAcao('Erro: ' + e.message); }
+}
+async function ignorarMediacao() {
+  if (!confirm('Ignorar esta mediação?\n\nEla sai da fila só no Harvey (nada é enviado ao Mercado Livre) e volta sozinha se o mediador ou o comprador mandar mensagem nova.')) return;
+  try { await api('/mediacao/' + sel + '/ignorar', { body: {} }); msgAcao('Ignorada.'); carregar(); }
+  catch (e) { msgAcao('Erro: ' + e.message); }
+}
+async function reabrirMediacao() {
+  try { await api('/mediacao/' + sel + '/reabrir', { body: {} }); msgAcao('Voltou para a fila.'); carregar(); abrir(sel); }
   catch (e) { msgAcao('Erro: ' + e.message); }
 }
 async function salvar() {
