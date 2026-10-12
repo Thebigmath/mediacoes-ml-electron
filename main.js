@@ -42,6 +42,15 @@ require('./lib/contas').usarAvisoDesconectada((conta, nome) => {
     n.on('click', () => { mostrarJanela(); mainWindow?.webContents.send('abrir-aba', 'config'); });
     n.show();
 });
+// Sinal de reputacao (risco de perder o Platinum): aviso urgente com beep, clique abre o Harvey
+require('./lib/reputacao').usarNotificador((titulo, corpo, opcoes = {}) => {
+    if (Notification.isSupported()) {
+        const n = new Notification({ title: titulo, body: corpo, urgency: 'critical' });
+        n.on('click', () => mostrarJanela());
+        n.show();
+    }
+    if (opcoes.beep) { let i = 0; const id = setInterval(() => { shell.beep(); if (++i >= 3) clearInterval(id); }, 450); }
+});
 monitor.usarNotificador((titulo, corpo) => {
     if (!Notification.isSupported()) return;
     const n = new Notification({ title: titulo, body: corpo });
@@ -153,6 +162,7 @@ app.whenReady().then(() => {
         monitor.iniciarAgendador();
         perguntas.iniciar();
         require('./lib/metricas').iniciarAutomatico();   // metricas de reclamacoes: 1x por dia
+        require('./lib/reputacao').iniciar();            // reputacao das duas contas: a cada 4 min
     });
 });
 
@@ -165,7 +175,7 @@ function criarBandeja() {
         { label: 'Atualizar mediações agora', click: () => { monitor.sincronizar().catch(() => {}); mostrarPainel(); } },
         { type: 'separator' },
         { label: 'Verificar atualização do app', click: () => { verificarUpdate(); mostrarJanela(); } },
-        { label: 'Sair', click: () => { encerrando = true; monitor.pararAgendador(); perguntas.parar(); require('./lib/metricas').pararAutomatico(); server.stop(); app.quit(); } },
+        { label: 'Sair', click: () => { encerrando = true; monitor.pararAgendador(); perguntas.parar(); require('./lib/metricas').pararAutomatico(); require('./lib/reputacao').parar(); server.stop(); app.quit(); } },
     ]));
     tray.on('double-click', () => mostrarJanela());
 }

@@ -192,9 +192,23 @@ router.get('/metricas', (req, res) => {
     const dias = Number(req.query.dias) || 90; const conta = req.query.conta || undefined;
     res.json({ ...metricas.resumo({ dias, conta }), ia: iaMetricas[`${dias}|${conta || ''}`] || null });
 });
+// Quebrados no caminho: prejuizo (custo + frete), reembolso do ML e a analise da IA (gerada 1x por dia)
+router.get('/metricas/quebrados', (req, res) => {
+    const q = metricas.quebrados({ dias: Number(req.query.dias) || 180, conta: req.query.conta || undefined });
+    res.json({ ...q, ia: require('../lib/ia_quebrados').ultima(q) });
+});
+router.post('/metricas/quebrados/ia', (req, res) => {
+    const b = req.body || {};
+    const q = metricas.quebrados({ dias: Number(b.dias) || 180, conta: b.conta || undefined });
+    if (!q.total) return res.status(400).json({ erro: 'Sem reclamações de produto quebrado no período. Clique em Atualizar métricas.' });
+    require('../lib/ia_quebrados').gerarESalvar(q).then(a => res.json(a)).catch(e => res.status(500).json({ erro: e.message }));
+});
+// Sinal de reputacao das duas contas (risco de perder o Platinum)
+router.get('/reputacao', (req, res) => res.json(require('../lib/reputacao').resumo()));
+router.post('/reputacao/verificar', (req, res) => require('../lib/reputacao').verificar().then(r => res.json(r)).catch(erro(res)));
 router.post('/metricas/atualizar', (req, res) => {
     const dias = Number((req.body || {}).dias) || 90;
-    metricas.coletar(Math.max(dias, 90)).then(() => res.json({ ok: true })).catch(erro(res));
+    metricas.coletar(Math.max(dias, 180)).then(() => res.json({ ok: true })).catch(erro(res));
 });
 router.post('/metricas/ia', (req, res) => {
     const dias = Number((req.body || {}).dias) || 90; const conta = (req.body || {}).conta || undefined;

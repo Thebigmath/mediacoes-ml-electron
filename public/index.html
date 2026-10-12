@@ -142,6 +142,7 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
     <button class="btn" id="btnSync"><i class="bi bi-arrow-repeat"></i> Atualizar</button>
   </div>
 </div>
+<div id="faixaRep"></div>
 <div class="faixa upd" id="faixaUpd"></div>
 <div class="faixa err" id="faixaErr"></div>
 
@@ -192,6 +193,19 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
       <div class="card"><div class="r">Como foram resolvidas</div><div id="mtResol" class="barras"></div></div>
     </div>
     <div class="card" style="margin-top:14px"><div class="r">Prejuízo direto — reclamações sem cobertura do ML</div><div id="mtPerdas"></div></div>
+
+    <div class="linha" style="margin:26px 0 12px;justify-content:space-between">
+      <div><div class="r" style="font-size:18px"><i class="bi bi-box-seam"></i> Quebrados no caminho</div>
+        <div class="sub" id="qbSub">Produto que chegou quebrado nos últimos 180 dias · prejuízo = custo do produto + frete que pagamos · atualiza sozinho 1x por dia</div></div>
+      <button class="btn pri" id="qbIA"><i class="bi bi-stars"></i> Refazer análise da IA</button>
+    </div>
+    <div class="cards" id="qbCards"></div>
+    <div class="card" id="qbIACard" style="display:none;margin-bottom:14px"></div>
+    <div class="mtgrade">
+      <div class="card"><div class="r">Por mês</div><div class="sub">quebras · caixa intacta / caixa danificada · não coberto pelo ML</div><div id="qbMeses" class="barras"></div></div>
+      <div class="card"><div class="r">Produtos que mais chegam quebrados</div><div class="sub">reclamações · perdidas · não coberto pelo ML</div><div id="qbProdutos" class="barras"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="r">Reclamações de quebra (comprador ganhou)</div><div class="sub">custo × quantidade + frete pago = prejuízo bruto · o ML reembolsa quando aplica a cobertura</div><div id="qbLista" style="overflow-x:auto"></div></div>
   </section>
 
   <section class="vista" id="v-dev">
@@ -520,6 +534,7 @@ async function carregarMetricas() {
     ${mt.perdas.map(x => `<tr style="border-top:1px solid var(--sep)"><td>${new Date(x.data).toLocaleDateString('pt-BR')}</td><td>${NOME[x.conta]}</td><td>${esc((x.produto || '').slice(0, 45))}</td><td>${esc(x.motivo)}</td><td>${esc(x.resolucao || '')}</td><td style="text-align:right;color:var(--vermelho);font-weight:700">${R$(x.valor)}</td></tr>`).join('')}</table>`
     : '<div class="sub" style="margin-top:6px">Nenhuma reclamação sem cobertura no período.</div>';
   desenharIA(mt.ia);
+  carregarQuebrados();
 }
 function desenharIA(a) {
   const el = $('mtIACard');
@@ -533,6 +548,68 @@ function desenharIA(a) {
     ${(a.principais_causas || []).length ? `<div class="bloco"><h4>Principais causas</h4>${a.principais_causas.map(x => `<div>• <b>${esc(x.causa)}</b> — ${esc(x.porque)}</div>`).join('')}</div>` : ''}
     ${(a.sugestoes || []).length ? `<div class="bloco"><h4>Sugestões</h4><div class="sugs">${a.sugestoes.map(x => `<div class="sug"><div class="h"><span>${esc(x.titulo)}</span><span class="chip ${imp[x.impacto] || ''}">impacto ${esc(x.impacto)}</span></div><div class="sub" style="margin-top:4px;color:var(--l2)">${esc(x.detalhe)}</div>${x.relacionado ? `<div class="sub" style="margin-top:4px">${esc(x.relacionado)}</div>` : ''}</div>`).join('')}</div></div>` : ''}`;
 }
+// ---- Quebrados no caminho ----
+let qb = null;
+async function carregarQuebrados() {
+  const q = new URLSearchParams({ dias: 180 }); if ($('conta').value) q.set('conta', $('conta').value);
+  try { qb = await api('/metricas/quebrados?' + q); } catch (e) { $('qbCards').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; return; }
+  const card = (r, n, cor, sub) => `<div class="card"><div class="r">${r}</div><div class="n" style="color:${cor || 'var(--l1)'};font-size:24px">${n}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+  $('qbCards').innerHTML = card('Chegaram quebrados', qb.total, '', `${qb.caixa_intacta} com a caixa intacta · ${qb.caixa_danificada} com a caixa danificada`)
+    + card('Comprador ganhou', qb.comprador_ganhou, 'var(--vermelho)', `${qb.com_cobertura_ml} com cobertura do ML · vendedor ganhou ${qb.vendedor_ganhou}`)
+    + card('Prejuízo bruto', R$(qb.prejuizo_bruto), 'var(--laranja)', `custo ${R$(qb.custo_produtos)} + frete ${R$(qb.frete_pago)}`)
+    + card('Reembolso do Mercado Livre', R$(qb.reembolso_ml), '#8ec5ff', 'o que o ML cobriu (cobertura)')
+    + card('Não coberto pelo ML', R$(qb.prejuizo_liquido), qb.prejuizo_liquido ? 'var(--vermelho)' : 'var(--verde)', 'prejuízo que ficou com a gente')
+    + card('Sem custo na planilha', qb.sem_custo, qb.sem_custo ? 'var(--laranja)' : 'var(--verde)', 'casos sem custo: o prejuízo deles conta só o frete');
+  const max = Math.max(...qb.meses.map(m => m.qtd), 1);
+  $('qbMeses').innerHTML = qb.meses.map(m => `<div class="barra"><div class="t"><span>${m.mes.split('-').reverse().join('/')}</span><span>${m.qtd} · ${m.caixa_intacta}/${m.caixa_danificada} · ${R$(m.prejuizo_liquido)}</span></div><div class="b"><i style="width:${m.qtd / max * 100}%"></i></div></div>`).join('') || '<div class="sub">Sem dados.</div>';
+  $('qbProdutos').innerHTML = barras(qb.produtos.slice(0, 10), x => `${x.sku ? x.sku + ' · ' : ''}${x.produto}`, x => `${x.qtd} · ${x.perdidas} · ${R$(x.prejuizo_liquido)}`);
+  const L = qb.linhas.filter(x => x.comprador_ganhou);
+  $('qbLista').innerHTML = L.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
+    <tr style="color:var(--l3);text-align:left"><th>Data</th><th>Conta</th><th>Produto</th><th>Caixa</th><th style="text-align:right">Custo</th><th style="text-align:right">Frete</th><th style="text-align:right">Prejuízo bruto</th><th style="text-align:right">Reembolso ML</th><th style="text-align:right">Não coberto</th></tr>
+    ${L.slice(0, 60).map(x => `<tr style="border-top:1px solid var(--sep)"><td>${new Date(x.data).toLocaleDateString('pt-BR')}</td><td>${NOME[x.conta]}</td>
+      <td>${esc((x.produto || '').slice(0, 42))}<div class="sub">${esc(x.sku || '')}${x.qtd > 1 ? ' · ' + x.qtd + ' un' : ''}</div></td>
+      <td>${x.tipo === 'caixa_intacta' ? 'intacta' : 'danificada'}</td><td style="text-align:right">${x.custo == null ? '<span class="sub">sem custo</span>' : R$(x.custo)}</td>
+      <td style="text-align:right">${x.frete == null ? '—' : R$(x.frete)}</td><td style="text-align:right">${R$(x.prejuizo_bruto)}</td>
+      <td style="text-align:right;color:#8ec5ff">${R$(x.reembolso_ml)}</td><td style="text-align:right;font-weight:700;color:${x.prejuizo_liquido ? 'var(--vermelho)' : 'var(--verde)'}">${R$(x.prejuizo_liquido)}</td></tr>`).join('')}</table>
+    ${L.length > 60 ? `<div class="sub" style="margin-top:6px">Mostrando as 60 mais recentes de ${L.length}.</div>` : ''}` : '<div class="sub" style="margin-top:6px">Nenhuma quebra em que o comprador ganhou no período.</div>';
+  desenharIAQuebrados(qb.ia);
+}
+function desenharIAQuebrados(a) {
+  const el = $('qbIACard');
+  if (!a) { el.style.display = ''; el.innerHTML = '<div class="sub">A análise da IA é gerada sozinha uma vez por dia, junto com a atualização. Para gerar agora, clique em "Refazer análise da IA".</div>'; return; }
+  el.style.display = '';
+  const lista = (t, arr, f) => (arr || []).length ? `<div class="bloco"><h4>${t}</h4>${arr.map(f).join('')}</div>` : '';
+  el.innerHTML = `<div class="r"><i class="bi bi-stars"></i> Análise da IA <span class="sub">· ${esc(a.modelo || '')} · ${new Date(a.analisado_em).toLocaleString('pt-BR')}</span></div>
+    <div style="margin-top:6px">${esc(a.resumo || '')}</div>
+    ${a.dinheiro ? `<div style="margin-top:6px"><b>Dinheiro:</b> ${esc(a.dinheiro)}</div>` : ''}
+    ${a.tendencia ? `<div class="sub" style="margin-top:6px">${esc(a.tendencia)}</div>` : ''}
+    ${lista('Atenção', a.alertas, x => `<div class="aviso">• ${esc(x)}</div>`)}
+    ${lista('Causas', a.causas, x => `<div>• <b>${esc(x.causa)}</b> — ${esc(x.evidencia)}</div>`)}
+    ${lista('Produtos críticos', a.produtos_criticos, x => `<div class="sug" style="margin-top:6px"><div class="h"><span>${esc(x.produto)}</span></div><div class="sub" style="color:var(--l2)">${esc(x.problema)}</div><div style="margin-top:4px">→ ${esc(x.acao)}</div></div>`)}
+    ${lista('Embalagem', a.embalagem, x => `<div>• ${esc(x)}</div>`)}
+    ${lista('Recuperar dinheiro', a.recuperar_dinheiro, x => `<div>• ${esc(x)}</div>`)}`;
+}
+$('qbIA').onclick = async () => {
+  const b = $('qbIA'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> A IA está analisando…';
+  try { desenharIAQuebrados(await api('/metricas/quebrados/ia', { body: { dias: 180, conta: $('conta').value || undefined } })); }
+  catch (e) { $('qbIACard').style.display = ''; $('qbIACard').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; }
+  finally { b.disabled = false; b.innerHTML = '<i class="bi bi-stars"></i> Refazer análise da IA'; }
+};
+// ---- Sinal de reputacao: faixa vermelha quando uma conta esta perto de perder o Platinum ----
+async function pintarReputacao() {
+  let r; try { r = await api('/reputacao'); } catch { return; }
+  const el = $('faixaRep');
+  let ocultaAte = 0; try { ocultaAte = Number(localStorage.getItem('repOcultaAte') || 0); } catch {}
+  const risco = (r.contas || []).filter(c => c.em_risco);
+  if (!risco.length || Date.now() < ocultaAte) { el.innerHTML = ''; return; }
+  const pct = (x) => (x * 100).toFixed(2).replace('.', ',') + '%';
+  el.innerHTML = `<div style="background:#C93E2E;color:#fff;padding:10px 18px;font-size:13px;font-weight:600;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <i class="bi bi-exclamation-triangle-fill" style="font-size:18px"></i><span>RISCO DE PERDER O PLATINUM</span>
+    ${risco.map(c => `<span style="font-weight:500">${esc(c.nome)}: ${c.metricas.filter(m => m.uso >= (c.alerta_em || 0.75)).map(m => `${esc(m.nome)} ${pct(m.taxa)} de ${pct(m.limite)} (${Math.round(m.uso * 100)}% do limite)`).join(' · ')}</span>`).join('')}
+    <span style="margin-left:auto;font-weight:400;font-size:11px;opacity:.85">verificado ${r.verificado_em ? new Date(r.verificado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+    <button onclick="try{localStorage.setItem('repOcultaAte',String(Date.now()+12*3600*1000))}catch{};$('faixaRep').innerHTML=''" title="Esconder por 12 horas (o aviso do Windows continua)" style="background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer">×</button></div>`;
+}
+pintarReputacao(); setInterval(pintarReputacao, 60 * 1000);
 $('mtDias').onchange = () => carregarMetricas();
 $('mtAtualizar').onclick = async () => {
   const b = $('mtAtualizar'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> Lendo no Mercado Livre…';
