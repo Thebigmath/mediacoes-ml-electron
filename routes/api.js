@@ -91,6 +91,7 @@ router.get('/painel', (req, res) => {
         acao_disponivel: m.acao_disponivel, total_mensagens: m.total_mensagens, resumo: (m.analise || {}).resumo || '',
         acao_recomendada: (m.analise || {}).acao_recomendada || '', tem_resposta: !!m.mensagem_sugerida,
         moderadas: (m.moderadas || []).length, atualizado_em_ml: m.atualizado_em_ml, order_id: m.order_id,
+        dinheiro: m.dinheiro ? { estado: m.dinheiro.estado, liberado: m.dinheiro.liberado } : null,
     }));
     res.json({ resumo: banco.resumo(conta), itens, estado: monitor.estado });
 });
@@ -101,6 +102,10 @@ router.get('/mediacao/:id/anexo/:arquivo', async (req, res) => {
     if (!ok) return res.status(404).end();
     try { const a = await require('../lib/ml').baixarAnexo(m.conta, m.mediacao_id, req.params.arquivo); res.set('Content-Type', a.tipo).set('Cache-Control', 'private, max-age=3600').send(a.dados); }
     catch (e) { res.status(502).end(); }
+});
+// O dinheiro cai na nossa conta? (mediacao encerrada: ML cobriu, venda mantida, parcial ou estornado)
+router.post('/mediacao/:id/dinheiro', async (req, res) => {
+    try { res.json(await require('../lib/dinheiro').conferir(req.params.id)); } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 router.get('/mediacao/:id', (req, res) => {
     const m = banco.obter(req.params.id);

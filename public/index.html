@@ -15,6 +15,10 @@ button { font:inherit; }
 .marca { display:flex; align-items:center; gap:10px; font-weight:800; font-size:16px; }
 .marca img { width:28px; height:28px; border-radius:8px; }
 .abas { display:flex; gap:4px; margin-left:18px; flex-wrap:wrap; }
+.chip.din-ok { background:rgba(48,209,88,.16); color:#30d158; border-color:rgba(48,209,88,.4); }
+.chip.din-parcial { background:rgba(255,159,10,.16); color:#ff9f0a; border-color:rgba(255,159,10,.4); }
+.chip.din-nao { background:rgba(255,69,58,.14); color:#ff6b61; border-color:rgba(255,69,58,.4); }
+.din-caixa.din-ok { border:1px solid rgba(48,209,88,.45); } .din-caixa.din-nao { border:1px solid rgba(255,69,58,.45); } .din-caixa.din-parcial { border:1px solid rgba(255,159,10,.45); }
 .nv-grid { display:grid; grid-template-columns:280px minmax(0,1fr); gap:20px; }
 @media (max-width: 900px) { .nv-grid { grid-template-columns:1fr; } }
 .nv-lista { display:flex; flex-direction:column; gap:8px; }
@@ -420,6 +424,21 @@ function desenharFiltros() {
   const ops = [['pendente', 'Pendentes'], ['auditando', 'Em revisão'], ['aguardando', 'Aguardando o ML'], ['enviada', 'Enviadas'], ['ignorada', 'Ignoradas'], ['encerrada', 'Encerradas'], ['', 'Todas']];
   $('filtros').innerHTML = ops.map(([v, n]) => `<button class="${$('filtro').value === v ? 'on' : ''}" onclick="$('filtro').value='${v}';desenharLista()">${n} ${v ? (c[v] || 0) : painel.itens.length}</button>`).join('');
 }
+const DIN = { coberto: ['ok', 'ML cobriu · dinheiro na conta'], recebe: ['ok', 'Dinheiro na conta'], parcial: ['parcial', 'Devolução parcial'], estorno: ['nao', 'Estornado ao comprador'] };
+const dinChip = (d) => d && DIN[d.estado] ? `<span class="chip din-${DIN[d.estado][0]}" title="O dinheiro da venda">${DIN[d.estado][0] === 'ok' ? '💰' : DIN[d.estado][0] === 'nao' ? '↩' : '½'} ${DIN[d.estado][1]}${DIN[d.estado][0] !== 'nao' && d.liberado === false ? ' (a liberar)' : ''}</span>` : '';
+function blocoDinheiro(m) {
+  if (m.status_ml === 'opened') return '';
+  const d = m.dinheiro;
+  return `<div class="bloco"><h4><i class="bi bi-cash-coin"></i> O dinheiro cai na nossa conta?</h4><div class="caixa din-caixa ${d && DIN[d.estado] ? 'din-' + DIN[d.estado][0] : ''}" id="dinCaixa">
+    ${d ? `<div>${dinChip(d)}</div><div style="margin-top:6px">${esc(d.texto)}</div><div class="sub" style="margin-top:6px">Conferido no Mercado Livre/Mercado Pago em ${quando(d.conferido_em)}${d.detalhe ? ' · pagamento: ' + esc(d.detalhe) : ''}</div>`
+      : '<div class="sub">Conferindo o pagamento no Mercado Livre…</div>'}
+    <div style="margin-top:8px"><button class="btn" onclick="conferirDinheiro()"><i class="bi bi-arrow-clockwise"></i> Conferir agora</button></div></div></div>`;
+}
+async function conferirDinheiro(semAviso) {
+  const id = sel; const cx = $('dinCaixa'); if (cx && !semAviso) cx.style.opacity = '.6';
+  try { const d = await api('/mediacao/' + id + '/dinheiro', { body: {} }); if (sel === id) { atual.dinheiro = d; const b = $('dinCaixa'); if (b) b.closest('.bloco').outerHTML = blocoDinheiro(atual); } carregar(); }
+  catch (e) { const b = $('dinCaixa'); if (b) { b.style.opacity = ''; b.insertAdjacentHTML('beforeend', `<div class="sub" style="color:#ff453a">Não consegui conferir: ${esc(e.message)}</div>`); } }
+}
 function desenharLista() {
   desenharFiltros();
   const f = $('filtro').value;
@@ -431,7 +450,7 @@ function desenharLista() {
       <div class="p">${esc(m.resumo || m.pergunta_original)}</div>
       <div class="linha"><span class="chip ${m.prioridade}">${esc(m.prioridade)}</span><span class="chip ${m.status}">${STATUS[m.status] || esc(m.status)}</span>
       <span class="chip">${NOME[m.conta] || esc(m.conta)}</span>${m.prazo_resposta ? `<span class="chip" title="Prazo para responder">⏱ ${quando(m.prazo_resposta)}</span>` : ''}
-      ${m.moderadas ? '<span class="chip alta" title="O ML moderou mensagem nesta conversa">moderada</span>' : ''}${m.tem_resposta ? '' : '<span class="chip">sem resposta</span>'}</div></div>`;
+      ${m.moderadas ? '<span class="chip alta" title="O ML moderou mensagem nesta conversa">moderada</span>' : ''}${m.status === 'encerrada' || m.dinheiro ? dinChip(m.dinheiro) : (m.tem_resposta ? '' : '<span class="chip">sem resposta</span>')}</div></div>`;
   $('lista').innerHTML = L.length ? grupos.map(([c, g]) => (c ? `<div class="secao"><span>${NOME[c]}</span><span>${g.length}</span></div>` : '') + g.map(item).join('')).join('')
     : '<div class="vazio">Nenhuma mediação aqui.</div>';
 }
@@ -474,6 +493,7 @@ async function abrir(id, semReler) {
     ${a.fotos ? `<div class="bloco"><h4><i class="bi bi-image"></i> O que as fotos mostram (IA)</h4><div class="caixa">${esc(a.fotos)}</div></div>` : ''}
     ${a.nossa_defesa ? `<div class="bloco"><h4>Nossa defesa</h4><div class="caixa">${esc(a.nossa_defesa)}</div></div>` : ''}
     ${(a.provas_faltantes || []).length ? `<div class="bloco"><h4>Confirmar antes de enviar</h4><div class="caixa">${a.provas_faltantes.map(p => '• ' + esc(p)).join('<br>')}</div></div>` : ''}
+    ${blocoDinheiro(m)}
     <div class="bloco"><h4>Conversa no Mercado Livre</h4><div class="caixa conversa">${conversa}</div></div>
     <div class="bloco"><h4>Resposta ${podeResponder ? '(vai para ' + para + ')' : ''}</h4>
       ${podeResponder && esperandoNos ? `<div class="linha" style="margin:0 0 8px"><span class="sub">Resposta rápida:</span>
@@ -496,6 +516,7 @@ async function abrir(id, semReler) {
       ${a.modelo ? `<div class="sub" style="margin-top:6px">Análise: ${esc(a.modelo)} · ${quando(a.analisado_em)}</div>` : ''}
     </div>
     ${(d.historico || []).length ? `<div class="bloco"><h4>Histórico neste app</h4><div class="caixa sub">${d.historico.map(h => `${quando(h.quando)} · ${esc(h.tipo)}${h.tom ? ' (' + esc(h.tom) + ')' : ''}${h.tipo === 'envio' ? (h.enviou ? ' · enviada' : ' · falhou: ' + esc(h.erro)) : ''}`).join('<br>')}</div></div>` : ''}`;
+  if (m.status_ml !== 'opened' && !m.dinheiro) conferirDinheiro(true);   // encerrada ainda sem conferencia: confere sozinho
 }
 const msgAcao = (t) => { const el = $('acaoMsg'); if (el) el.textContent = t; };
 async function analisar() {

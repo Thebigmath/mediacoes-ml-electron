@@ -1,5 +1,13 @@
 [
   {
+    "versao": "2.0.11",
+    "data": "2026-10-13",
+    "titulo": "O dinheiro cai na nossa conta?",
+    "texto": "Nas mediações encerradas, o Harvey confere o pagamento do pedido no Mercado Livre e no Mercado Pago e mostra:\n\n- ML cobriu: o Mercado Livre cobriu o reembolso do comprador e o dinheiro da venda fica com a loja.\n- Dinheiro na conta: ganhamos e a venda foi mantida.\n- Devolução parcial: parte voltou ao comprador, o resto fica com a loja.\n- Estornado ao comprador: o dinheiro não cai na conta.\n\nO selo aparece no card de cada mediação, e o detalhe mostra o valor líquido e a data de liberação no Mercado Pago, com o botão Conferir agora. A conferência roda sozinha a cada busca.",
+    "imagens": [],
+    "video": ""
+  },
+  {
     "versao": "2.0.10",
     "data": "2026-10-13",
     "titulo": "Respostas mais humanas, Novidades e Atualizações globais",
