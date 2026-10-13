@@ -1,5 +1,13 @@
 [
   {
+    "versao": "2.0.12",
+    "data": "2026-10-13",
+    "titulo": "Métricas com retrospectiva e filtro de dias",
+    "texto": "- Filtro de 7, 15, 30, 60, 90 ou 180 dias, para a tela toda.\n- Retrospectiva: o período comparado com o anterior do mesmo tamanho (reclamações, quanto ganhamos, o que saiu do nosso bolso, o que o ML cobriu, quebrados), com o que aconteceu em frases, a evolução, os motivos e os produtos.\n- Quebrados no caminho seguem o mesmo filtro.",
+    "imagens": [],
+    "video": ""
+  },
+  {
     "versao": "2.0.11",
     "data": "2026-10-13",
     "titulo": "O dinheiro cai na nossa conta?",

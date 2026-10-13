@@ -197,6 +197,8 @@ router.get('/metricas', (req, res) => {
     const dias = Number(req.query.dias) || 90; const conta = req.query.conta || undefined;
     res.json({ ...metricas.resumo({ dias, conta }), ia: iaMetricas[`${dias}|${conta || ''}`] || null });
 });
+// Retrospectiva: o periodo escolhido comparado com o periodo anterior do mesmo tamanho
+router.get('/metricas/retrospectiva', (req, res) => res.json(metricas.retrospectiva({ dias: Number(req.query.dias) || 30, conta: req.query.conta || undefined })));
 // Quebrados no caminho: prejuizo (custo + frete), reembolso do ML e a analise da IA (gerada 1x por dia)
 router.get('/metricas/quebrados', (req, res) => {
     const q = metricas.quebrados({ dias: Number(req.query.dias) || 180, conta: req.query.conta || undefined });
@@ -213,7 +215,7 @@ router.get('/reputacao', (req, res) => res.json(require('../lib/reputacao').resu
 router.post('/reputacao/verificar', (req, res) => require('../lib/reputacao').verificar().then(r => res.json(r)).catch(erro(res)));
 router.post('/metricas/atualizar', (req, res) => {
     const dias = Number((req.body || {}).dias) || 90;
-    metricas.coletar(Math.max(dias, 180)).then(() => res.json({ ok: true })).catch(erro(res));
+    metricas.coletar(Math.max(dias * 2, 365)).then(() => res.json({ ok: true })).catch(erro(res));
 });
 router.post('/metricas/ia', (req, res) => {
     const dias = Number((req.body || {}).dias) || 90; const conta = (req.body || {}).conta || undefined;

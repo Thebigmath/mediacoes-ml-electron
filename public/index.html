@@ -114,6 +114,27 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
 .termlinha { display:flex; align-items:center; gap:8px; margin-top:8px; background:#07080b; border:1px solid var(--sep); border-radius:10px; padding:4px 10px; font:13px ui-monospace,Consolas,monospace; }
 .termlinha span { color:var(--ac); font-weight:800; } .termlinha input { flex:1; background:none; border:0; outline:none; font:inherit; padding:6px 0; }
 .mtgrade { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.mt-dias { display:flex; gap:4px; background:var(--s1); border:1px solid var(--sep); border-radius:11px; padding:3px; }
+.mt-dias button { background:none; border:0; color:var(--l2); padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:13px; }
+.mt-dias button.on { background:var(--ac); color:#fff; }
+.rt-cards { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+@media (max-width:1300px) { .rt-cards { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+.rt-card { background:var(--s1); border:1px solid var(--sep); border-radius:14px; padding:14px 16px; }
+.rt-card .r { font-size:12px; color:var(--l3); }
+.rt-card .n { font-size:24px; font-weight:800; margin-top:4px; }
+.rt-card .d { font-size:12px; margin-top:4px; font-weight:700; }
+.rt-card .d.bom { color:var(--verde); } .rt-card .d.ruim { color:var(--vermelho); } .rt-card .d.neutro { color:var(--l3); }
+.rt-dest { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+.rt-dest div { display:flex; gap:10px; align-items:flex-start; font-size:14px; line-height:1.5; }
+.rt-dest i { font-size:15px; margin-top:2px; }
+.rt-dest .bom i { color:var(--verde); } .rt-dest .ruim i { color:var(--vermelho); } .rt-dest .neutro i { color:var(--l3); }
+.rt-sec { font-size:18px; font-weight:800; margin:4px 0 2px; }
+.rt-colunas { display:flex; align-items:flex-end; gap:6px; height:140px; margin-top:12px; }
+.rt-colunas .col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
+.rt-colunas .col .barra-v { width:100%; max-width:46px; background:var(--ac); border-radius:6px 6px 2px 2px; position:relative; }
+.rt-colunas .col .barra-v i { position:absolute; left:0; right:0; bottom:0; background:var(--vermelho); border-radius:0 0 2px 2px; opacity:.85; }
+.rt-colunas .col small { font-size:10.5px; color:var(--l3); white-space:nowrap; }
+.rt-colunas .col b { font-size:11.5px; }
 @media (max-width:1000px) { .mtgrade { grid-template-columns:1fr; } }
 .barras { margin-top:8px; display:flex; flex-direction:column; gap:7px; }
 .barra .t { display:flex; justify-content:space-between; gap:10px; font-size:13px; }
@@ -229,13 +250,26 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
   </section>
 
   <section class="vista" id="v-metricas">
-    <div class="linha" style="margin:0 0 4px;justify-content:flex-end;gap:10px">
-      <span class="sub" id="mtSub">—</span>
-      <button class="btn" id="mtAtualizar"><i class="bi bi-arrow-repeat"></i> Atualizar</button>
+    <div class="linha" style="margin:0 0 10px;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div class="mt-dias" id="mtDias"></div>
+      <div class="linha" style="margin:0;gap:10px"><span class="sub" id="mtSub">—</span>
+      <button class="btn" id="mtAtualizar"><i class="bi bi-arrow-repeat"></i> Atualizar</button></div>
     </div>
+    <div class="rt-sec"><i class="bi bi-clock-history"></i> Retrospectiva</div>
+    <div class="sub" id="rtSub" style="margin-bottom:10px">—</div>
+    <div class="rt-cards" id="rtCards"></div>
+    <div class="mtgrade">
+      <div class="card"><div class="r">O que aconteceu no período</div><div class="rt-dest" id="rtDest"></div></div>
+      <div class="card"><div class="r">Evolução</div><div class="sub" id="rtSerieSub">reclamações encerradas · em vermelho as que o comprador ganhou</div><div class="rt-colunas" id="rtSerie"></div></div>
+    </div>
+    <div class="mtgrade" style="margin-top:14px">
+      <div class="card"><div class="r">Motivos</div><div class="sub">agora · antes (período anterior)</div><div id="rtMotivos" class="barras"></div></div>
+      <div class="card"><div class="r">Produtos com mais reclamações perdidas</div><div class="sub">agora · antes</div><div id="rtProdutos" class="barras"></div></div>
+    </div>
+    <div style="height:22px"></div>
     <div class="linha" style="margin:6px 0 12px;justify-content:space-between">
       <div><div class="r" style="font-size:18px"><i class="bi bi-box-seam"></i> Quebrados no caminho</div>
-        <div class="sub" id="qbSub">Produto que chegou quebrado nos últimos 180 dias · prejuízo = custo do produto + frete que pagamos · atualiza sozinho 1x por dia</div></div>
+        <div class="sub" id="qbSub">Produto que chegou quebrado no período · prejuízo = custo do produto + frete que pagamos · atualiza sozinho 1x por dia</div></div>
       <button class="btn pri" id="qbIA"><i class="bi bi-stars"></i> Refazer análise da IA</button>
     </div>
     <div class="cards" id="qbCards"></div>
@@ -628,15 +662,56 @@ function barras(lista, rot, val, max) {
   return lista.map(x => `<div class="barra"><div class="t"><span title="${esc(rot(x))}">${esc(rot(x))}</span><span>${val(x)}</span></div><div class="b"><i style="width:${Math.round(x.qtd / max * 100)}%"></i></div></div>`).join('') || '<div class="sub">Sem dados.</div>';
 }
 // Metricas = Quebrados no caminho (o bloco "Reclamacoes encerradas" saiu em 13/10/2026: nao era usado).
+// ---- Metricas: filtro de dias (vale para a retrospectiva e para os quebrados) ----
+const MT_DIAS = [7, 15, 30, 60, 90, 180];
+let mtDias = (() => { try { return Number(localStorage.getItem('mtDias')) || 30; } catch { return 30; } })();
+function desenharDias() {
+  $('mtDias').innerHTML = MT_DIAS.map(d => `<button class="${d === mtDias ? 'on' : ''}" onclick="mudarDias(${d})">${d} dias</button>`).join('');
+}
+function mudarDias(d) { mtDias = d; try { localStorage.setItem('mtDias', String(d)); } catch {} carregarMetricas(); }
+let rt = null;
+async function carregarRetrospectiva() {
+  const q = new URLSearchParams({ dias: mtDias }); if ($('conta').value) q.set('conta', $('conta').value);
+  try { rt = await api('/metricas/retrospectiva?' + q); } catch (e) { $('rtCards').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; return; }
+  const d = (s) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  $('rtSub').textContent = `Últimos ${rt.dias} dias (${d(rt.periodo.de)} a ${d(rt.periodo.ate)})` + (rt.comparavel ? ` comparados com os ${rt.dias} dias anteriores (${d(rt.periodo_anterior.de)} a ${d(rt.periodo_anterior.ate)})` : ' · ainda sem histórico suficiente para comparar com o período anterior');
+  const A = rt.atual, B = rt.anterior;
+  // menor e melhor (reclamacoes, perdas, prejuizo, quebrados); maior e melhor (taxa de vitoria)
+  const delta = (a, b, menorMelhor, fmt) => {
+    if (!rt.comparavel || a == null || b == null) return '<div class="d neutro">&nbsp;</div>';
+    const dif = a - b; if (Math.abs(dif) < 0.005) return `<div class="d neutro">= igual ao anterior</div>`;
+    const bom = menorMelhor ? dif < 0 : dif > 0;
+    return `<div class="d ${bom ? 'bom' : 'ruim'}">${dif > 0 ? '▲' : '▼'} ${fmt(Math.abs(dif))} · antes ${fmt(b)}</div>`;
+  };
+  const n = (v) => String(v), p = (v) => String(Math.round(v * 10) / 10).replace('.', ',') + '%';
+  const card = (r, v, cor, dl) => `<div class="rt-card"><div class="r">${r}</div><div class="n" style="color:${cor || 'var(--l1)'}">${v}</div>${dl}</div>`;
+  $('rtCards').innerHTML = card('Reclamações encerradas', A.total, '', delta(A.total, B.total, true, n))
+    + card('Ganhamos', A.taxa_vitoria == null ? '—' : p(A.taxa_vitoria), 'var(--verde)', delta(A.taxa_vitoria, B.taxa_vitoria, false, p))
+    + card('Comprador ganhou', A.comprador_ganhou, 'var(--vermelho)', delta(A.comprador_ganhou, B.comprador_ganhou, true, n))
+    + card('Saiu do nosso bolso', R$(A.prejuizo_direto), A.prejuizo_direto ? 'var(--vermelho)' : 'var(--verde)', delta(A.prejuizo_direto, B.prejuizo_direto, true, R$))
+    + card('O ML cobriu', R$(A.coberto_ml), '#8ec5ff', delta(A.coberto_ml, B.coberto_ml, false, R$).replace(/class="d (bom|ruim)"/, 'class="d neutro"'))
+    + card('Chegaram quebrados', A.quebrados, 'var(--laranja)', delta(A.quebrados, B.quebrados, true, n));
+  const ic = { bom: 'bi-arrow-down-circle-fill', ruim: 'bi-exclamation-circle-fill', neutro: 'bi-dot' };
+  $('rtDest').innerHTML = rt.destaques.map(x => `<div class="${x.tom}"><i class="bi ${x.tom === 'bom' ? 'bi-check-circle-fill' : ic[x.tom]}"></i><span>${esc(x.txt)}</span></div>`).join('') || '<div class="sub">Sem reclamações no período.</div>';
+  const max = Math.max(...rt.serie.map(s => s.qtd), 1);
+  $('rtSerieSub').textContent = `reclamações encerradas por ${rt.passo === 1 ? 'dia' : rt.passo === 7 ? 'semana' : 'mês'} · em vermelho as que o comprador ganhou`;
+  $('rtSerie').innerHTML = rt.serie.map(s => `<div class="col" title="${d(s.de)} a ${d(s.ate)}: ${s.qtd} reclamações, ${s.perdidas} perdidas, ${R$(s.prejuizo)} do nosso bolso">
+      <b>${s.qtd}</b><div class="barra-v" style="height:${Math.max(3, s.qtd / max * 100)}px"><i style="height:${s.qtd ? s.perdidas / s.qtd * 100 : 0}%"></i></div><small>${d(s.de)}</small></div>`).join('');
+  const maxM = Math.max(...rt.motivos.map(m => Math.max(m.atual, m.anterior)), 1);
+  $('rtMotivos').innerHTML = rt.motivos.map(m => `<div class="barra"><div class="t"><span title="${esc(m.nome)}">${esc(m.nome)}</span><span>${m.atual}${rt.comparavel ? ' · ' + m.anterior : ''}</span></div><div class="b"><i style="width:${m.atual / maxM * 100}%"></i></div></div>`).join('') || '<div class="sub">—</div>';
+  const maxP = Math.max(...rt.produtos.map(m => m.atual), 1);
+  $('rtProdutos').innerHTML = rt.produtos.map(x => `<div class="barra"><div class="t"><span title="${esc(x.titulo)}">${x.sku ? esc(x.sku) + ' · ' : ''}${esc(x.titulo)} <span class="sub">${NOME[x.conta] || ''}</span></span><span>${x.atual}${rt.comparavel ? ' · ' + x.anterior : ''}</span></div><div class="b"><i style="width:${x.atual / maxP * 100}%;background:var(--vermelho)"></i></div></div>`).join('') || '<div class="sub">Nenhuma reclamação perdida no período.</div>';
+}
 async function carregarMetricas() {
-  await carregarQuebrados();
+  desenharDias();
+  await Promise.all([carregarRetrospectiva(), carregarQuebrados()]);
   mt = { atualizado_em: (qb || {}).atualizado_em || null };
   $('mtSub').textContent = mt.atualizado_em ? `Atualizado em ${new Date(mt.atualizado_em).toLocaleString('pt-BR')} · atualiza sozinho 1x por dia` : 'Ainda não atualizado: o Harvey busca sozinho em até 2 minutos (ou clique em Atualizar).';
 }
 // ---- Quebrados no caminho ----
 let qb = null;
 async function carregarQuebrados() {
-  const q = new URLSearchParams({ dias: 180 }); if ($('conta').value) q.set('conta', $('conta').value);
+  const q = new URLSearchParams({ dias: mtDias }); if ($('conta').value) q.set('conta', $('conta').value);
   try { qb = await api('/metricas/quebrados?' + q); } catch (e) { $('qbCards').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; return; }
   const card = (r, n, cor, sub) => `<div class="card"><div class="r">${r}</div><div class="n" style="color:${cor || 'var(--l1)'};font-size:24px">${n}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
   $('qbCards').innerHTML = card('Chegaram quebrados', qb.total, '', `${qb.caixa_intacta} com a caixa intacta · ${qb.caixa_danificada} com a caixa danificada`)
@@ -676,7 +751,7 @@ function desenharIAQuebrados(a) {
 }
 $('qbIA').onclick = async () => {
   const b = $('qbIA'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> A IA está analisando…';
-  try { desenharIAQuebrados(await api('/metricas/quebrados/ia', { body: { dias: 180, conta: $('conta').value || undefined } })); }
+  try { desenharIAQuebrados(await api('/metricas/quebrados/ia', { body: { dias: mtDias, conta: $('conta').value || undefined } })); }
   catch (e) { $('qbIACard').style.display = ''; $('qbIACard').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; }
   finally { b.disabled = false; b.innerHTML = '<i class="bi bi-stars"></i> Refazer análise da IA'; }
 };
