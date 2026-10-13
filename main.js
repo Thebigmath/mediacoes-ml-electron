@@ -51,6 +51,13 @@ require('./lib/reputacao').usarNotificador((titulo, corpo, opcoes = {}) => {
     }
     if (opcoes.beep) { let i = 0; const id = setInterval(() => { shell.beep(); if (++i >= 3) clearInterval(id); }, 450); }
 });
+// Novidades do app e Atualizacoes globais: o clique abre a aba certa
+require('./lib/notificar').usarNotificador((titulo, corpo, rota) => {
+    if (!Notification.isSupported()) return;
+    const n = new Notification({ title: titulo, body: corpo });
+    n.on('click', () => { mostrarJanela(); mainWindow?.webContents.send('abrir-aba', rota === '/avisos' ? 'globais' : 'novidades'); });
+    n.show();
+});
 monitor.usarNotificador((titulo, corpo) => {
     if (!Notification.isSupported()) return;
     const n = new Notification({ title: titulo, body: corpo });
@@ -158,6 +165,8 @@ app.whenReady().then(() => {
         });
         criarBandeja();
         criarPainel();
+        require('./lib/avisos').iniciarAgendador();
+        setTimeout(() => { try { require('./lib/novidades').avisarSeAtualizou(); } catch {} }, 8000);
         if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true, args: ['--segundo-plano'] });
         monitor.iniciarAgendador();
         perguntas.iniciar();

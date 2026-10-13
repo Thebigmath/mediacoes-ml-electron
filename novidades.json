@@ -1,0 +1,34 @@
+[
+  {
+    "versao": "2.0.10",
+    "data": "2026-10-13",
+    "titulo": "Respostas mais humanas, Novidades e Atualizações globais",
+    "texto": "O Harvey ficou mais rápido de ler e mais parecido com a equipe:\n\n- Respostas no tom de uma pessoa da loja: diretas, educadas e firmes na defesa do caso, sem o jeito formal de robô.\n- A IA aprende com as respostas reais que a equipe já mandou (mediações e perguntas) e pensa mais antes de responder.\n\nDuas abas novas:\n\n- Novidades do app: o que mudou em cada versão do Harvey.\n- Atualizações globais: o mesmo quadro dos Dashboards, com tudo o que existe no sistema (SEVEN, Dashboards, Harvey) e os próximos projetos. Avisa quando chega algo novo.",
+    "imagens": [],
+    "video": ""
+  },
+  {
+    "versao": "2.0.9",
+    "data": "2026-10-13",
+    "titulo": "Métricas: Quebrados no caminho",
+    "texto": "- As Métricas mostram só o relatório de Quebrados no caminho (o bloco de reclamações encerradas saiu).",
+    "imagens": [],
+    "video": ""
+  },
+  {
+    "versao": "2.0.8",
+    "data": "2026-10-12",
+    "titulo": "Sinal de reputação e relatório de Quebrados",
+    "texto": "- O sinal de reputação das duas contas saiu do Dashboard e veio para o Harvey: avisa com som quando a conta chega perto de perder o Platinum.\n- Relatório Quebrados no caminho nas Métricas: custo do produto + frete, o que o ML devolveu e a análise diária da IA.",
+    "imagens": [],
+    "video": ""
+  },
+  {
+    "versao": "2.0.7",
+    "data": "2026-10-09",
+    "titulo": "Ignorar mediação e IA aprendendo com a equipe",
+    "texto": "- Botão Ignorar: tira da fila a mediação que não precisa de resposta (dá para reabrir).\n- A IA pensa mais e aprende com as respostas reais da equipe.",
+    "imagens": [],
+    "video": ""
+  }
+]

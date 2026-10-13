@@ -247,4 +247,16 @@ router.post('/perguntas/:id/responder', (req, res) => perguntas.responder(req.pa
 router.post('/perguntas/:id/gerar', (req, res) => perguntas.gerarDeNovo(req.params.id).then(r => res.json({ ok: true, pergunta: r })).catch(erro(res)));
 router.post('/perguntas/:id/ignorar', (req, res) => { perguntas.ignorar(req.params.id); res.json({ ok: true }); });
 
+// Novidades do app (notas de cada versao, vao dentro do instalador) e Atualizacoes globais
+// (feed remoto unico de todos os apps: Dashboards, Harvey e os proximos projetos)
+const novidades = require('../lib/novidades');
+const avisos = require('../lib/avisos');
+router.get('/novidades', (req, res) => res.json(novidades.listar()));
+router.post('/novidades/visto', (req, res) => res.json(novidades.marcarVisto()));
+router.get('/avisos', (req, res) => res.json(avisos.listar()));
+router.post('/avisos/visto', (req, res) => res.json(avisos.marcarVisto()));
+router.post('/avisos/verificar', async (req, res) => {
+    try { res.json(await avisos.verificar()); } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
 module.exports = router;
