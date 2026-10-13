@@ -175,26 +175,11 @@ textarea.resp { width:100%; min-height:200px; resize:vertical; line-height:1.55;
   </section>
 
   <section class="vista" id="v-metricas">
-    <div class="linha" style="margin:0 0 14px;justify-content:space-between">
-      <div><div class="r">Reclamações encerradas</div><div class="sub" id="mtSub">—</div></div>
-      <div class="linha" style="margin:0">
-        <select id="mtDias"><option value="30">Últimos 30 dias</option><option value="60">Últimos 60 dias</option><option value="90" selected>Últimos 90 dias</option></select>
-        <button class="btn" id="mtAtualizar"><i class="bi bi-arrow-repeat"></i> Atualizar métricas</button>
-        <button class="btn pri" id="mtIA"><i class="bi bi-stars"></i> Analisar com a IA</button>
-        <button class="btn" id="mtHtml" title="Gera um dashboard em HTML (um arquivo, abre sem internet) com os números e a análise da IA"><i class="bi bi-file-earmark-bar-graph"></i> Gerar dashboard HTML</button>
-      </div>
+    <div class="linha" style="margin:0 0 4px;justify-content:flex-end;gap:10px">
+      <span class="sub" id="mtSub">—</span>
+      <button class="btn" id="mtAtualizar"><i class="bi bi-arrow-repeat"></i> Atualizar</button>
     </div>
-    <div class="cards" id="mtCards"></div>
-    <div class="card" id="mtIACard" style="display:none;margin-bottom:14px"></div>
-    <div class="mtgrade">
-      <div class="card"><div class="r">Principais motivos</div><div class="sub">quantidade · comprador ganhou · reembolsado</div><div id="mtMotivos" class="barras"></div></div>
-      <div class="card"><div class="r">Produtos em que o comprador ganhou</div><div class="sub">reclamações perdidas · reembolsado</div><div id="mtProdutos" class="barras"></div></div>
-      <div class="card"><div class="r">Por tipo</div><div id="mtTipos" class="barras"></div></div>
-      <div class="card"><div class="r">Como foram resolvidas</div><div id="mtResol" class="barras"></div></div>
-    </div>
-    <div class="card" style="margin-top:14px"><div class="r">Prejuízo direto — reclamações sem cobertura do ML</div><div id="mtPerdas"></div></div>
-
-    <div class="linha" style="margin:26px 0 12px;justify-content:space-between">
+    <div class="linha" style="margin:6px 0 12px;justify-content:space-between">
       <div><div class="r" style="font-size:18px"><i class="bi bi-box-seam"></i> Quebrados no caminho</div>
         <div class="sub" id="qbSub">Produto que chegou quebrado nos últimos 180 dias · prejuízo = custo do produto + frete que pagamos · atualiza sozinho 1x por dia</div></div>
       <button class="btn pri" id="qbIA"><i class="bi bi-stars"></i> Refazer análise da IA</button>
@@ -513,40 +498,11 @@ function barras(lista, rot, val, max) {
   max = max || Math.max(1, ...lista.map(x => x.qtd));
   return lista.map(x => `<div class="barra"><div class="t"><span title="${esc(rot(x))}">${esc(rot(x))}</span><span>${val(x)}</span></div><div class="b"><i style="width:${Math.round(x.qtd / max * 100)}%"></i></div></div>`).join('') || '<div class="sub">Sem dados.</div>';
 }
+// Metricas = Quebrados no caminho (o bloco "Reclamacoes encerradas" saiu em 13/10/2026: nao era usado).
 async function carregarMetricas() {
-  const q = new URLSearchParams({ dias: $('mtDias').value }); if ($('conta').value) q.set('conta', $('conta').value);
-  mt = await api('/metricas?' + q);
-  $('mtSub').textContent = mt.atualizado_em ? `${$('conta').value ? NOME[$('conta').value] : 'Flavia Stock e Cordeiro Car'} · atualizado em ${new Date(mt.atualizado_em).toLocaleString('pt-BR')} · atualiza sozinho 1x por dia` : 'Ainda não atualizado: o Harvey busca sozinho em até 2 minutos (ou clique em "Atualizar métricas").';
-  const pct = (n) => mt.total ? Math.round(n / mt.total * 100) + '%' : '—';
-  const card = (r, n, cor, sub) => `<div class="card"><div class="r">${r}</div><div class="n" style="color:${cor || 'var(--l1)'};font-size:24px">${n}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
-  $('mtCards').innerHTML = card('Reclamações encerradas', mt.total, '', `${mt.dias} dias`)
-    + card('Comprador ganhou', mt.comprador_ganhou, 'var(--vermelho)', pct(mt.comprador_ganhou) + ' das encerradas')
-    + card('Vendedor ganhou', mt.vendedor_ganhou, 'var(--verde)', `${pct(mt.vendedor_ganhou)} · ${mt.dividido} divididas`)
-    + card('Reembolsado aos compradores', R$(mt.reembolsado_total), 'var(--laranja)', 'total dos pedidos em que o comprador ganhou')
-    + card('Com cobertura do ML', R$(mt.coberto_ml), '#8ec5ff', `${mt.qtd_coberto} reclamações: o ML aplicou a cobertura`)
-    + card('Prejuízo direto', R$(mt.prejuizo_direto), mt.prejuizo_direto ? 'var(--vermelho)' : 'var(--verde)', `${mt.qtd_sem_cobertura} reclamação(ões) sem cobertura`);
-  $('mtMotivos').innerHTML = barras(mt.motivos, x => x.nome, x => `${x.qtd} · ${x.comprador_ganhou} · ${R$(x.reembolsado)}`);
-  $('mtProdutos').innerHTML = barras(mt.produtos, x => x.titulo || x.chave, x => `${x.qtd} · ${R$(x.reembolsado)}`);
-  $('mtTipos').innerHTML = barras(mt.por_tipo, x => x.nome, x => `${x.qtd} · comprador ganhou ${x.comprador_ganhou}`);
-  $('mtResol').innerHTML = barras(mt.por_resolucao.slice(0, 8), x => x.nome, x => x.qtd);
-  $('mtPerdas').innerHTML = mt.perdas.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
-    <tr style="color:var(--l3);text-align:left"><th>Data</th><th>Conta</th><th>Produto</th><th>Motivo</th><th>Resolução</th><th style="text-align:right">Valor</th></tr>
-    ${mt.perdas.map(x => `<tr style="border-top:1px solid var(--sep)"><td>${new Date(x.data).toLocaleDateString('pt-BR')}</td><td>${NOME[x.conta]}</td><td>${esc((x.produto || '').slice(0, 45))}</td><td>${esc(x.motivo)}</td><td>${esc(x.resolucao || '')}</td><td style="text-align:right;color:var(--vermelho);font-weight:700">${R$(x.valor)}</td></tr>`).join('')}</table>`
-    : '<div class="sub" style="margin-top:6px">Nenhuma reclamação sem cobertura no período.</div>';
-  desenharIA(mt.ia);
-  carregarQuebrados();
-}
-function desenharIA(a) {
-  const el = $('mtIACard');
-  if (!a) { el.style.display = 'none'; return; }
-  el.style.display = '';
-  const imp = { alto: 'alta', medio: 'media', baixo: 'baixa' };
-  el.innerHTML = `<div class="r"><i class="bi bi-stars"></i> Análise da IA <span class="sub">· ${esc(a.modelo || '')} · ${new Date(a.analisado_em).toLocaleString('pt-BR')}</span></div>
-    <div style="margin-top:6px">${esc(a.resumo || '')}</div>
-    ${a.prejuizo ? `<div class="sub" style="margin-top:6px">${esc(a.prejuizo)}</div>` : ''}
-    ${(a.alertas || []).length ? `<div class="bloco"><h4>Atenção</h4>${a.alertas.map(x => `<div class="aviso">• ${esc(x)}</div>`).join('')}</div>` : ''}
-    ${(a.principais_causas || []).length ? `<div class="bloco"><h4>Principais causas</h4>${a.principais_causas.map(x => `<div>• <b>${esc(x.causa)}</b> — ${esc(x.porque)}</div>`).join('')}</div>` : ''}
-    ${(a.sugestoes || []).length ? `<div class="bloco"><h4>Sugestões</h4><div class="sugs">${a.sugestoes.map(x => `<div class="sug"><div class="h"><span>${esc(x.titulo)}</span><span class="chip ${imp[x.impacto] || ''}">impacto ${esc(x.impacto)}</span></div><div class="sub" style="margin-top:4px;color:var(--l2)">${esc(x.detalhe)}</div>${x.relacionado ? `<div class="sub" style="margin-top:4px">${esc(x.relacionado)}</div>` : ''}</div>`).join('')}</div></div>` : ''}`;
+  await carregarQuebrados();
+  mt = { atualizado_em: (qb || {}).atualizado_em || null };
+  $('mtSub').textContent = mt.atualizado_em ? `Atualizado em ${new Date(mt.atualizado_em).toLocaleString('pt-BR')} · atualiza sozinho 1x por dia` : 'Ainda não atualizado: o Harvey busca sozinho em até 2 minutos (ou clique em Atualizar).';
 }
 // ---- Quebrados no caminho ----
 let qb = null;
@@ -610,29 +566,11 @@ async function pintarReputacao() {
     <button onclick="try{localStorage.setItem('repOcultaAte',String(Date.now()+12*3600*1000))}catch{};$('faixaRep').innerHTML=''" title="Esconder por 12 horas (o aviso do Windows continua)" style="background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer">×</button></div>`;
 }
 pintarReputacao(); setInterval(pintarReputacao, 60 * 1000);
-$('mtDias').onchange = () => carregarMetricas();
 $('mtAtualizar').onclick = async () => {
   const b = $('mtAtualizar'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> Lendo no Mercado Livre…';
-  try { await api('/metricas/atualizar', { body: { dias: Number($('mtDias').value) } }); await carregarMetricas(); }
+  try { await api('/metricas/atualizar', { body: { dias: 180 } }); await carregarMetricas(); }
   catch (e) { $('mtSub').textContent = 'Erro: ' + e.message; }
-  b.disabled = false; b.innerHTML = '<i class="bi bi-arrow-repeat"></i> Atualizar métricas';
-};
-$('mtIA').onclick = async () => {
-  const b = $('mtIA'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> A IA está analisando…';
-  try { const a = await api('/metricas/ia', { body: { dias: Number($('mtDias').value), conta: $('conta').value || undefined } }); desenharIA(a); }
-  catch (e) { $('mtIACard').style.display = ''; $('mtIACard').innerHTML = `<div class="aviso">Erro: ${esc(e.message)}</div>`; }
-  b.disabled = false; b.innerHTML = '<i class="bi bi-stars"></i> Analisar com a IA';
-};
-
-$('mtHtml').onclick = async () => {
-  const b = $('mtHtml'); b.disabled = true; b.innerHTML = '<i class="bi bi-hourglass-split"></i> Gerando…';
-  try {
-    const r = await api('/metricas/relatorio', { body: { dias: Number($('mtDias').value), conta: $('conta').value || undefined, comIA: true } });
-    $('mtSub').innerHTML = `Dashboard salvo em <b>${esc(r.arquivo)}</b>${r.com_ia ? ' (com a análise da IA)' : ''}`;
-    if (window.electronAPI && window.electronAPI.abrirRelatorio) window.electronAPI.abrirRelatorio(r.arquivo);
-    carregarMetricas();
-  } catch (e) { $('mtSub').textContent = 'Erro: ' + e.message; }
-  b.disabled = false; b.innerHTML = '<i class="bi bi-file-earmark-bar-graph"></i> Gerar dashboard HTML';
+  b.disabled = false; b.innerHTML = '<i class="bi bi-arrow-repeat"></i> Atualizar';
 };
 
 // ---- area do desenvolvedor: senha ----
